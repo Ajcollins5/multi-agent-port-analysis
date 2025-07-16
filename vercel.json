@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "multi-agent-portfolio-analysis",
+  "builds": [
+    {
+      "src": "api/main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/app.py"
+    }
+  ],
+  "env": {
+    "XAI_API_KEY": "@xai_api_key",
+    "SMTP_SERVER": "@smtp_server",
+    "SMTP_PORT": "@smtp_port",
+    "SENDER_EMAIL": "@sender_email",
+    "SENDER_PASSWORD": "@sender_password",
+    "TO_EMAIL": "@to_email"
+  },
+  "functions": {
+    "api/main.py": {
+      "maxDuration": 30
+    },
+    "api/app.py": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "framework": "other"
+} 
