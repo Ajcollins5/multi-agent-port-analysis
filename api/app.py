@@ -1,172 +1,401 @@
+from flask import Flask, request, jsonify, render_template_string
 import os
 import json
-import sqlite3
+import yfinance as yf
 from datetime import datetime, timedelta
-from api.main import fetch_stock_data, determine_impact_level, analyze_portfolio, send_email, PORTFOLIO
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-# In-memory database for Vercel (since SQLite files don't persist)
-# In production, you'd use a proper database like PostgreSQL
-def get_mock_insights():
-    """Get mock insights for demonstration"""
-    return [
-        {
-            "ticker": "AAPL",
-            "insight": "Strong technical indicators showing bullish momentum",
-            "timestamp": "2024-01-01 10:00:00"
-        },
-        {
-            "ticker": "AAPL", 
-            "insight": "REFINED: Market sentiment remains positive with institutional buying",
-            "timestamp": "2024-01-01 11:00:00"
-        },
-        {
-            "ticker": "TSLA",
-            "insight": "High volatility detected, monitor for trend reversal",
-            "timestamp": "2024-01-01 12:00:00"
+# Initialize Flask app
+app = Flask(__name__)
+
+# Vercel environment variables
+XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "")
+SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD", "")
+TO_EMAIL = os.environ.get("TO_EMAIL", "austin@example.com")
+
+# Portfolio configuration
+PORTFOLIO = ['AAPL']
+
+# In-memory storage for insights (since SQLite doesn't persist on Vercel)
+# In production, use a proper database like PostgreSQL or Redis
+INSIGHTS_STORAGE = []
+
+def send_email(subject, body, to_email=None):
+    """Send email notifications for high impact events"""
+    if not to_email:
+        to_email = TO_EMAIL
+    
+    try:
+        message = MIMEMultipart()
+        message["From"] = SENDER_EMAIL
+        message["To"] = to_email
+        message["Subject"] = subject
+        message.attach(MIMEText(body, "plain"))
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        
+        text = message.as_string()
+        server.sendmail(SENDER_EMAIL, to_email, text)
+        server.quit()
+        
+        return {"success": True, "message": f"Email sent to {to_email}"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def fetch_stock_data(ticker):
+    """Fetch stock data and detect high impact events"""
+    try:
+        # Download stock data for the past 5 days
+        data = yf.download(ticker, period="5d", progress=False)
+        
+        if data.empty:
+            return {"error": f"No data found for {ticker}"}
+        
+        volatility = data['Close'].pct_change().std()
+        current_price = float(data['Close'].iloc[-1])
+        
+        # Event detection: Check if volatility exceeds threshold
+        result = {
+            "ticker": ticker,
+            "current_price": current_price,
+            "volatility": float(volatility),
+            "high_impact": volatility > 0.05,
+            "impact_level": "High" if volatility > 0.05 else "Medium" if volatility > 0.02 else "Low",
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
-    ]
+        
+        # Store insight in memory
+        insight = f"Analysis for {ticker}: Price ${current_price:.2f}, Volatility {volatility:.4f} ({result['impact_level']} impact)"
+        INSIGHTS_STORAGE.append({
+            "ticker": ticker,
+            "insight": insight,
+            "timestamp": result["timestamp"]
+        })
+        
+        # Keep only last 100 insights
+        if len(INSIGHTS_STORAGE) > 100:
+            INSIGHTS_STORAGE[:] = INSIGHTS_STORAGE[-100:]
+        
+        if volatility > 0.05:
+            # Send email notification for high impact event
+            subject = f"🚨 HIGH IMPACT EVENT: {ticker} Stock Alert"
+            body = f"""HIGH IMPACT EVENT DETECTED
 
-def get_portfolio_summary():
-    """Get portfolio summary for dashboard"""
+Ticker: {ticker}
+Current Price: ${current_price:.2f}
+Volatility: {volatility:.4f} (>0.05 threshold)
+Timestamp: {result["timestamp"]}
+
+This is an automated alert from the Multi-Agent Portfolio Analysis System.
+High volatility detected requiring immediate attention.
+
+---
+Multi-Agent Portfolio Analysis System
+Powered by Vercel Serverless Functions"""
+            
+            email_result = send_email(subject, body)
+            result["email_sent"] = email_result["success"]
+            if not email_result["success"]:
+                result["email_error"] = email_result.get("error")
+        
+        return result
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+def analyze_portfolio():
+    """Analyze the entire portfolio"""
     try:
         results = []
+        high_impact_count = 0
+        
         for ticker in PORTFOLIO:
             stock_data = fetch_stock_data(ticker)
             if not stock_data.get("error"):
-                # Map to portfolio summary format
-                volatility = float(stock_data["volatility"]) if stock_data["volatility"] else 0.0
-                impact_level = "High" if volatility > 0.05 else "Medium" if volatility > 0.02 else "Low"
-                
-                results.append({
-                    "ticker": ticker,
-                    "volatility": volatility,
-                    "impact_level": impact_level,
-                    "insights": 3  # Mock insight count
-                })
+                results.append(stock_data)
+                if stock_data.get("high_impact"):
+                    high_impact_count += 1
         
-        return {
-            "portfolio_data": results,
-            "total_stocks": len(PORTFOLIO),
-            "high_impact_count": len([r for r in results if r["impact_level"] == "High"]),
-            "total_insights": sum([r["insights"] for r in results])
+        # Portfolio summary
+        portfolio_risk = "HIGH" if high_impact_count > len(PORTFOLIO) * 0.5 else "MEDIUM" if high_impact_count > 0 else "LOW"
+        
+        summary = {
+            "portfolio_size": len(PORTFOLIO),
+            "analyzed_stocks": len(results),
+            "high_impact_count": high_impact_count,
+            "portfolio_risk": portfolio_risk,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "results": results
         }
+        
+        return summary
         
     except Exception as e:
         return {"error": str(e)}
 
-def get_recent_insights(limit=10):
-    """Get recent insights for dashboard"""
-    insights = get_mock_insights()
-    return {
-        "insights": insights[:limit],
-        "total_count": len(insights)
-    }
+# Dashboard HTML template
+DASHBOARD_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multi-Agent Portfolio Analysis</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; margin: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .metric { display: inline-block; margin: 10px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .high { color: #dc3545; font-weight: bold; }
+        .medium { color: #ffc107; font-weight: bold; }
+        .low { color: #28a745; font-weight: bold; }
+        .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #0056b3; }
+        .alert { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .insight { background: #e9ecef; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        .loading { text-align: center; padding: 20px; }
+        input[type="text"] { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Multi-Agent Portfolio Analysis System</h1>
+            <p>Powered by Vercel Serverless Functions</p>
+        </div>
+        
+        <div class="card">
+            <h2>Portfolio Dashboard</h2>
+            <div id="portfolio-summary">
+                <div class="loading">Loading portfolio data...</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Analyze New Ticker</h2>
+            <input type="text" id="ticker-input" placeholder="Enter ticker symbol (e.g., TSLA, GOOGL)" />
+            <button class="btn" onclick="analyzeStock()">Analyze</button>
+            <div id="analysis-result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Recent Insights</h2>
+            <div id="insights-list">
+                <div class="loading">Loading insights...</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Quick Actions</h2>
+            <button class="btn" onclick="analyzePortfolio()">Analyze Portfolio</button>
+            <button class="btn" onclick="refreshDashboard()">Refresh Dashboard</button>
+        </div>
+    </div>
 
-def get_event_summary():
-    """Get event summary for dashboard"""
-    try:
-        portfolio_analysis = analyze_portfolio()
-        
-        events = []
-        for result in portfolio_analysis.get("results", []):
-            if isinstance(result, dict) and result.get("high_impact"):
-                events.append({
-                    "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    "type": "HIGH_IMPACT",
-                    "ticker": result.get("ticker", "UNKNOWN"),
-                    "message": f"High volatility detected: {result.get('volatility', 0.0):.4f}"
-                })
-        
-        return {
-            "events": events,
-            "portfolio_risk": portfolio_analysis.get("portfolio_risk", "LOW"),
-            "event_count": len(events)
+    <script>
+        // API calls using fetch
+        async function apiCall(endpoint, data = {}) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return await response.json();
+            } catch (error) {
+                return { error: error.message };
+            }
         }
-        
-    except Exception as e:
-        return {"error": str(e)}
 
-def get_knowledge_evolution(ticker):
-    """Get knowledge evolution data for a ticker"""
-    insights = get_mock_insights()
-    ticker_insights = [i for i in insights if i["ticker"] == ticker]
-    
-    refined_count = len([i for i in ticker_insights if i["insight"].startswith("REFINED:")])
-    
-    return {
-        "ticker": ticker,
-        "total_insights": len(ticker_insights),
-        "refined_insights": refined_count,
-        "evolution_rate": refined_count / len(ticker_insights) * 100 if ticker_insights else 0,
-        "insights": ticker_insights
-    }
+        // Load portfolio summary
+        async function loadPortfolioSummary() {
+            const result = await apiCall('/api/app', { action: 'portfolio_analysis' });
+            const summaryDiv = document.getElementById('portfolio-summary');
+            
+            if (result.error) {
+                summaryDiv.innerHTML = `<div class="alert alert-error">Error: ${result.error}</div>`;
+                return;
+            }
+            
+            const html = `
+                <div class="metric">
+                    <strong>Portfolio Size:</strong> ${result.portfolio_size || 0} stocks
+                </div>
+                <div class="metric">
+                    <strong>Risk Level:</strong> <span class="${result.portfolio_risk?.toLowerCase() || 'low'}">${result.portfolio_risk || 'LOW'}</span>
+                </div>
+                <div class="metric">
+                    <strong>High Impact:</strong> ${result.high_impact_count || 0} stocks
+                </div>
+                <div class="metric">
+                    <strong>Last Analysis:</strong> ${result.timestamp || 'N/A'}
+                </div>
+            `;
+            summaryDiv.innerHTML = html;
+        }
 
-def handler(request):
-    """Main Vercel serverless function handler"""
+        // Load recent insights
+        async function loadInsights() {
+            const result = await apiCall('/api/app', { action: 'insights' });
+            const insightsDiv = document.getElementById('insights-list');
+            
+            if (result.error) {
+                insightsDiv.innerHTML = `<div class="alert alert-error">Error: ${result.error}</div>`;
+                return;
+            }
+            
+            if (result.insights && result.insights.length > 0) {
+                const html = result.insights.map(insight => `
+                    <div class="insight">
+                        <strong>${insight.ticker}</strong> - ${insight.timestamp}<br>
+                        ${insight.insight}
+                    </div>
+                `).join('');
+                insightsDiv.innerHTML = html;
+            } else {
+                insightsDiv.innerHTML = '<div class="alert alert-success">No insights available yet.</div>';
+            }
+        }
+
+        // Analyze individual stock
+        async function analyzeStock() {
+            const ticker = document.getElementById('ticker-input').value.toUpperCase();
+            const resultDiv = document.getElementById('analysis-result');
+            
+            if (!ticker) {
+                resultDiv.innerHTML = '<div class="alert alert-error">Please enter a ticker symbol.</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Analyzing ' + ticker + '...</div>';
+            
+            const result = await apiCall('/api/app', { action: 'analyze_ticker', ticker: ticker });
+            
+            if (result.error) {
+                resultDiv.innerHTML = `<div class="alert alert-error">Error: ${result.error}</div>`;
+                return;
+            }
+            
+            const html = `
+                <div class="alert alert-success">
+                    <strong>Analysis Complete for ${ticker}</strong><br>
+                    <strong>Current Price:</strong> $${result.current_price?.toFixed(2) || 'N/A'}<br>
+                    <strong>Volatility:</strong> ${result.volatility?.toFixed(4) || 'N/A'}<br>
+                    <strong>Impact Level:</strong> <span class="${result.impact_level?.toLowerCase() || 'low'}">${result.impact_level || 'LOW'}</span><br>
+                    ${result.high_impact ? '<strong>🚨 HIGH IMPACT EVENT DETECTED!</strong><br>' : ''}
+                    ${result.email_sent ? '✅ Email notification sent' : ''}
+                </div>
+            `;
+            resultDiv.innerHTML = html;
+            
+            // Refresh insights to show new analysis
+            setTimeout(loadInsights, 1000);
+        }
+
+        // Analyze entire portfolio
+        async function analyzePortfolio() {
+            const result = await apiCall('/api/app', { action: 'portfolio_analysis' });
+            
+            if (result.error) {
+                alert('Error analyzing portfolio: ' + result.error);
+                return;
+            }
+            
+            alert(`Portfolio analysis complete!\\n\\nRisk Level: ${result.portfolio_risk}\\nHigh Impact Events: ${result.high_impact_count}\\nAnalyzed Stocks: ${result.analyzed_stocks}`);
+            
+            // Refresh dashboard
+            refreshDashboard();
+        }
+
+        // Refresh dashboard
+        function refreshDashboard() {
+            loadPortfolioSummary();
+            loadInsights();
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDashboard();
+        });
+    </script>
+</body>
+</html>
+"""
+
+# API Routes
+@app.route('/')
+def dashboard():
+    """Serve the dashboard HTML"""
+    return render_template_string(DASHBOARD_HTML)
+
+@app.route('/api/app', methods=['POST'])
+def api_handler():
+    """Handle API requests"""
     try:
-        # Parse request
-        if request.method == "POST":
-            body = request.get_json()
-            action = body.get("action")
-            
-            if action == "dashboard":
-                return json.dumps({
-                    "portfolio_summary": get_portfolio_summary(),
-                    "recent_insights": get_recent_insights(5),
-                    "event_summary": get_event_summary()
-                })
-            
-            elif action == "analyze_ticker":
-                ticker = body.get("ticker", "AAPL")
-                return json.dumps({
-                    "stock_data": fetch_stock_data(ticker),
-                    "impact_level": determine_impact_level(ticker),
-                    "knowledge_evolution": get_knowledge_evolution(ticker)
-                })
-            
-            elif action == "portfolio_analysis":
-                return json.dumps(analyze_portfolio())
-            
-            elif action == "insights":
-                limit = body.get("limit", 10)
-                return json.dumps(get_recent_insights(limit))
-            
-            elif action == "events":
-                return json.dumps(get_event_summary())
-            
-            elif action == "knowledge_evolution":
-                ticker = body.get("ticker", "AAPL")
-                return json.dumps(get_knowledge_evolution(ticker))
-            
-            else:
-                return json.dumps({"error": "Invalid action"})
+        data = request.get_json() or {}
+        action = data.get('action', 'status')
+        
+        if action == 'analyze_ticker':
+            ticker = data.get('ticker', 'AAPL')
+            return jsonify(fetch_stock_data(ticker))
+        
+        elif action == 'portfolio_analysis':
+            return jsonify(analyze_portfolio())
+        
+        elif action == 'insights':
+            # Return recent insights from memory
+            recent_insights = INSIGHTS_STORAGE[-10:] if INSIGHTS_STORAGE else []
+            return jsonify({
+                "insights": recent_insights,
+                "total_count": len(INSIGHTS_STORAGE)
+            })
+        
+        elif action == 'send_test_email':
+            subject = data.get('subject', 'Test Email')
+            message = data.get('message', 'Test message from Multi-Agent Portfolio Analysis')
+            return jsonify(send_email(subject, message))
         
         else:
-            # GET request - return dashboard data
-            return json.dumps({
-                "status": "Multi-Agent Portfolio Analysis Dashboard API",
-                "version": "1.0.0",
-                "powered_by": "Grok 4 with Knowledge Evolution",
-                "portfolio": PORTFOLIO,
-                "endpoints": [
-                    "POST /api/app - dashboard (complete dashboard data)",
-                    "POST /api/app - analyze_ticker",
-                    "POST /api/app - portfolio_analysis",
-                    "POST /api/app - insights",
-                    "POST /api/app - events",
-                    "POST /api/app - knowledge_evolution"
-                ],
-                "dashboard_data": {
-                    "portfolio_summary": get_portfolio_summary(),
-                    "recent_insights": get_recent_insights(5),
-                    "event_summary": get_event_summary()
-                }
-            })
+            return jsonify({"error": "Invalid action"})
             
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return jsonify({"error": str(e)})
+
+@app.route('/api/app', methods=['GET'])
+def status():
+    """Return system status"""
+    return jsonify({
+        "status": "Multi-Agent Portfolio Analysis System",
+        "version": "2.0.0",
+        "framework": "Flask (Vercel Compatible)",
+        "portfolio": PORTFOLIO,
+        "insights_count": len(INSIGHTS_STORAGE),
+        "endpoints": [
+            "GET / - Dashboard",
+            "POST /api/app - API endpoints",
+            "GET /api/app - System status"
+        ]
+    })
 
 # Vercel handler
-def main(request):
+def handler(request):
     """Vercel entry point"""
-    return handler(request) 
+    return app.test_client().open(
+        request.path,
+        method=request.method,
+        headers=request.headers,
+        data=request.get_data()
+    )
+
+# For local development
+if __name__ == '__main__':
+    app.run(debug=True) 

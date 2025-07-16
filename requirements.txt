@@ -1,11 +1,43 @@
+# Streamlit Cloud Optimized Requirements
+# Core Streamlit dependencies
 streamlit>=1.28.0
 pandas>=1.5.0
 plotly>=5.15.0
-yfinance>=0.2.20
-pyautogen>=0.2.0
-apscheduler>=3.10.0
 
-# Email functionality uses built-in Python modules:
+# Financial data and analysis
+yfinance>=0.2.20
+numpy>=1.24.0
+
+# Multi-agent system (lightweight version)
+pyautogen>=0.2.0
+
+# Background scheduling for cloud deployment
+apscheduler>=3.10.0
+schedule>=1.2.0
+
+# Database support for cloud deployment
+psycopg2-binary>=2.9.0  # PostgreSQL support
+redis>=4.5.0            # Redis caching
+
+# HTTP and API requests
+requests>=2.28.0
+urllib3>=1.26.0
+
+# Data processing and utilities
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# Email functionality (built-in modules):
 # - smtplib (built-in)
 # - email.mime.text (built-in)
-# - email.mime.multipart (built-in) 
+# - email.mime.multipart (built-in)
+
+# Optional performance improvements
+cachetools>=5.3.0
+concurrent-futures>=3.1.1
+
+# Error handling and logging
+tenacity>=8.2.0
+
+# Security and environment
+python-dotenv>=1.0.0 
