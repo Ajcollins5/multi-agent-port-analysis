@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-07-16T21:24:04.152042",
+  "timestamp": "2025-07-16T21:26:14.156793",
   "base_url": "http://localhost:5000",
-  "duration": 0.027657,
+  "duration": 0.034938,
   "results": [
     {
       "test": "Vercel Config",
@@ -14,7 +14,7 @@
         "function_count": 9,
         "route_count": 24
       },
-      "timestamp": "2025-07-16T21:24:04.152128"
+      "timestamp": "2025-07-16T21:26:14.157126"
     },
     {
       "test": "Python Requirements",
@@ -24,16 +24,16 @@
         "total_dependencies": 11,
         "critical_deps_present": true
       },
-      "timestamp": "2025-07-16T21:24:04.152175"
+      "timestamp": "2025-07-16T21:26:14.157219"
     },
     {
       "test": "Git Status",
-      "success": false,
-      "message": "Uncommitted changes detected",
+      "success": true,
+      "message": "Repository is clean",
       "details": {
-        "changes": " M vercel.json\n?? VERCEL_CONFIG_EXPLANATION.md\n"
+        "branch": "main"
       },
-      "timestamp": "2025-07-16T21:24:04.165187"
+      "timestamp": "2025-07-16T21:26:14.177944"
     },
     {
       "test": "Environment Variables",
@@ -49,7 +49,7 @@
           "XAI_API_KEY"
         ]
       },
-      "timestamp": "2025-07-16T21:24:04.165251"
+      "timestamp": "2025-07-16T21:26:14.178030"
     },
     {
       "test": "API /api/health",
@@ -58,7 +58,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:24:04.173289"
+      "timestamp": "2025-07-16T21:26:14.185725"
     },
     {
       "test": "API /api/portfolio",
@@ -67,7 +67,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:24:04.175604"
+      "timestamp": "2025-07-16T21:26:14.187891"
     },
     {
       "test": "API /api/analysis",
@@ -76,7 +76,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:24:04.177984"
+      "timestamp": "2025-07-16T21:26:14.189662"
     },
     {
       "test": "API /api/storage/stats",
@@ -85,12 +85,12 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:24:04.179652"
+      "timestamp": "2025-07-16T21:26:14.191658"
     }
   ],
   "summary": {
     "total_tests": 8,
-    "passed": 2,
-    "failed": 6
+    "passed": 3,
+    "failed": 5
   }
 }
