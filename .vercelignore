@@ -33,7 +33,16 @@ optimizations.py
 worker.py
 cloud_config.py
 main.py
-app.py
+# Note: api/app.py is ESSENTIAL for deployment - do not ignore
+
+# IMPORTANT: Do NOT ignore these essential API files:
+# !api/
+# !api/app.py
+# !api/agents/
+# !api/notifications/
+# !api/database/
+# !api/scheduler/
+# !api/supervisor.py
 
 # Log files
 *.log

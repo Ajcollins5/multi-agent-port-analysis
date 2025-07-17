@@ -151,7 +151,6 @@
   "installCommand": "cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/.next",
-  "ignoreCommand": "exit 0",
   "regions": ["iad1", "sfo1"],
   "github": {
     "enabled": true,
