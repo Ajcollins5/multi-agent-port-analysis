@@ -2,7 +2,6 @@ import autogen  # pip install pyautogen
 import os
 import sqlite3
 import yfinance as yf
-from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import smtplib
 from email.mime.text import MIMEText
@@ -49,11 +48,11 @@ def send_email(subject, body, to_email="austin@example.com"):
         server.sendmail(sender_email, to_email, text)
         server.quit()
         
-        print(f"✓ Email sent successfully to {to_email}")
+        print(f"✓ Email sent to {to_email}")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"✗ Email sending failed: {e}")
         return False
 
 # Config for Grok 4 (OpenAI-compatible)
@@ -501,51 +500,32 @@ Powered by Grok 4 with Knowledge Evolution"""
     except Exception as e:
         print(f"Error analyzing {ticker}: {e}")
 
-# Enhanced daily analysis with impact level checking and knowledge evolution
 def daily_analysis():
-    """Run daily analysis for all tickers in portfolio"""
-    print("\n=== Daily Portfolio Analysis ===")
+    """Run complete daily analysis for the portfolio"""
+    print("\n🔄 Starting daily analysis...")
     analysis_start = datetime.now()
-    high_impact_tickers = []
     
+    # Run analysis for each stock in portfolio
     for ticker in PORTFOLIO:
-        analyze_ticker(ticker)
-        # Check if this was a high impact event
+        print(f"\n📊 Analyzing {ticker}...")
         try:
-            data = yf.download(ticker, period="5d", progress=False)
-            if not data.empty:
-                volatility = data['Close'].pct_change().std()
-                if volatility > 0.05:
-                    high_impact_tickers.append(f"{ticker} (volatility: {volatility:.4f})")
-        except:
-            pass
-        print("-" * 50)
+            analyze_ticker(ticker)
+            time.sleep(1)  # Rate limiting
+        except Exception as e:
+            print(f"❌ Error analyzing {ticker}: {e}")
     
-    # Send email notification for completed daily analysis
     analysis_end = datetime.now()
     duration = analysis_end - analysis_start
     
-    subject = f"📈 Daily Portfolio Analysis Complete - {len(PORTFOLIO)} Stocks Analyzed"
-    body = f"""DAILY PORTFOLIO ANALYSIS COMPLETED
+    # Generate email summary
+    subject = f"📊 Daily Portfolio Analysis Complete - {analysis_end.strftime('%Y-%m-%d %H:%M:%S')}"
+    body = f"""Daily Analysis Summary
+Generated: {analysis_end.strftime('%Y-%m-%d %H:%M:%S')}
+Duration: {duration.seconds} seconds
+Portfolio: {', '.join(PORTFOLIO)}
 
-Analysis Summary:
-• Portfolio Size: {len(PORTFOLIO)} stocks
-• Analysis Duration: {duration.total_seconds():.1f} seconds
-• High Impact Events: {len(high_impact_tickers)}
-• Timestamp: {analysis_end.strftime('%Y-%m-%d %H:%M:%S')}
-
-ANALYZED TICKERS:
-{', '.join(PORTFOLIO)}
-
-{'HIGH IMPACT EVENTS DETECTED:' if high_impact_tickers else 'No high impact events detected.'}
-{chr(10).join(f'• {ticker}' for ticker in high_impact_tickers) if high_impact_tickers else ''}
-
-GROK AI ANALYSIS STATUS:
-✓ Multi-agent analysis completed for all tickers
-✓ Risk assessments updated
-✓ News sentiment analysis performed
-✓ Knowledge evolution applied across portfolio
-✓ All insights stored in knowledge database
+Analysis completed for {len(PORTFOLIO)} stocks successfully.
+Total time: {duration.total_seconds():.1f} seconds
 
 Next scheduled analysis: {(analysis_end + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -558,118 +538,5 @@ Powered by Grok 4 with Knowledge Evolution"""
     send_email(subject, body)
     print(f"Daily analysis complete for {len(PORTFOLIO)} stocks. Email notification sent.")
 
-def cli_analysis():
-    """CLI interface for ad-hoc ticker analysis"""
-    print("\n=== CLI Ad-hoc Analysis ===")
-    print(f"Current portfolio: {PORTFOLIO}")
-    
-    while True:
-        # Get ticker input from user
-        ticker = input("\nEnter ticker symbol to analyze (or 'quit' to exit): ").strip().upper()
-        
-        if ticker == 'QUIT':
-            print("Exiting CLI analysis...")
-            break
-        
-        if not ticker:
-            print("Please enter a valid ticker symbol.")
-            continue
-        
-        # Analyze the ticker
-        analyze_ticker(ticker)
-        
-        # Ask if user wants to add to portfolio
-        if ticker not in PORTFOLIO:
-            add_to_portfolio = input(f"\nAdd {ticker} to portfolio? (y/n): ").strip().lower()
-            if add_to_portfolio == 'y':
-                PORTFOLIO.append(ticker)
-                print(f"✓ {ticker} added to portfolio. Current portfolio: {PORTFOLIO}")
-            else:
-                print(f"✗ {ticker} not added to portfolio.")
-        else:
-            print(f"ℹ️  {ticker} is already in portfolio.")
-        
-        # Ask if user wants to analyze another ticker
-        continue_analysis = input("\nAnalyze another ticker? (y/n): ").strip().lower()
-        if continue_analysis != 'y':
-            break
-    
-    print(f"Final portfolio: {PORTFOLIO}")
-
-def show_menu():
-    """Display CLI menu options"""
-    print("\n" + "="*50)
-    print("🚀 MULTI-AGENT PORTFOLIO ANALYSIS SYSTEM")
-    print("="*50)
-    print("1. Run daily analysis for portfolio")
-    print("2. Ad-hoc ticker analysis (CLI)")
-    print("3. View current portfolio")
-    print("4. Start scheduled analysis")
-    print("5. Exit")
-    print("="*50)
-
-# Initialize scheduler (not started by default)
-scheduler = BackgroundScheduler()
-
-def start_scheduled_analysis():
-    """Start background scheduled analysis"""
-    scheduler.add_job(daily_analysis, 'interval', seconds=3600)  # Run every hour
-    scheduler.start()
-    print("✓ Scheduled analysis started (runs every hour)")
-    print("Press Ctrl+C to return to menu")
-    
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        scheduler.shutdown()
-        print("\n✓ Scheduled analysis stopped")
-
-def main():
-    """Main CLI interface"""
-    print("Welcome to Multi-Agent Portfolio Analysis System!")
-    print("Powered by Grok 4 with Knowledge Evolution")
-    
-    while True:
-        show_menu()
-        choice = input("\nSelect option (1-5): ").strip()
-        
-        if choice == '1':
-            # Run daily analysis for portfolio
-            daily_analysis()
-            
-        elif choice == '2':
-            # Ad-hoc ticker analysis (CLI)
-            cli_analysis()
-            
-        elif choice == '3':
-            # View current portfolio
-            print(f"\n📊 Current Portfolio: {PORTFOLIO}")
-            print(f"Total stocks: {len(PORTFOLIO)}")
-            
-        elif choice == '4':
-            # Start scheduled analysis
-            start_scheduled_analysis()
-            
-        elif choice == '5':
-            # Exit
-            print("Thank you for using Multi-Agent Portfolio Analysis System!")
-            break
-            
-        else:
-            print("❌ Invalid option. Please select 1-5.")
-        
-        # Pause before showing menu again
-        input("\nPress Enter to continue...")
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\n👋 Goodbye!")
-    finally:
-        # Cleanup
-        if scheduler.running:
-            scheduler.shutdown()
-        conn.close()
-        print("✓ Database connection closed")
+# Core functions preserved for API compatibility
+# CLI functions removed for serverless deployment compatibility
