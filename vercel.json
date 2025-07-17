@@ -40,6 +40,68 @@
       "maxDuration": 60
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/app.py"
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "destination": "/frontend/_next/static/$1"
+    },
+    {
+      "source": "/_next/image(.*)",
+      "destination": "/frontend/_next/image$1"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/frontend/public/favicon.ico"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/frontend/public/robots.txt"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/frontend/public/sitemap.xml"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/frontend/public/manifest.json"
+    },
+    {
+      "source": "/dashboard/(.*)",
+      "destination": "/frontend/dashboard/$1"
+    },
+    {
+      "source": "/analysis/(.*)",
+      "destination": "/frontend/analysis/$1"
+    },
+    {
+      "source": "/knowledge/(.*)",
+      "destination": "/frontend/knowledge/$1"
+    },
+    {
+      "source": "/events/(.*)",
+      "destination": "/frontend/events/$1"
+    },
+    {
+      "source": "/scheduler/(.*)",
+      "destination": "/frontend/scheduler/$1"
+    },
+    {
+      "source": "/settings/(.*)",
+      "destination": "/frontend/settings/$1"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/$1"
+    }
+  ],
   "redirects": [
     {
       "source": "/app",
