@@ -71,7 +71,7 @@ def send_email(subject, body, to_email=None):
 # Config for Grok 4 (OpenAI-compatible)
 config_list = [{
     "model": "grok-4-0709",
-    "api_key": os.environ["XAI_API_KEY"],
+    "api_key": XAI_API_KEY,  # Use the validated environment variable
     "base_url": "https://api.x.ai/v1",
     "api_type": "open_ai"  # For compatibility
 }]

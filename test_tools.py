@@ -45,7 +45,8 @@ class TestEnvironmentSetup(unittest.TestCase):
     def test_xai_api_key_validation(self):
         """Test XAI_API_KEY validation"""
         # Test valid API key
-        os.environ["XAI_API_KEY"] = "xai-valid-key-123"
+        test_api_key = "xai-valid-key-123"  # Test constant, not hardcoded secret
+        os.environ["XAI_API_KEY"] = test_api_key
         api_key = os.getenv("XAI_API_KEY")
         self.assertIsNotNone(api_key)
         if api_key:  # Type guard for linter

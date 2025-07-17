@@ -16,7 +16,9 @@ class VercelCronManager:
     """Manages cron jobs compatible with Vercel serverless environment"""
     
     def __init__(self):
-        self.cron_secret = os.environ.get('CRON_SECRET', 'default_secret')
+        self.cron_secret = os.environ.get('CRON_SECRET')
+        if not self.cron_secret:
+            raise ValueError("CRON_SECRET environment variable is required for secure cron job authentication. Set it in Vercel dashboard or local .env.")
         self.deployment_url = os.environ.get('VERCEL_URL', '')
         self.github_token = os.environ.get('GITHUB_TOKEN', '')
         self.github_repo = os.environ.get('GITHUB_REPOSITORY', '')
