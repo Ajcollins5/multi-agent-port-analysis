@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-07-16T21:09:49.121395",
+  "timestamp": "2025-07-16T21:10:04.172308",
   "base_url": "http://localhost:5000",
-  "duration": 0.025916,
+  "duration": 0.035884,
   "results": [
     {
       "test": "Vercel Config",
@@ -14,7 +14,7 @@
         "function_count": 9,
         "route_count": 24
       },
-      "timestamp": "2025-07-16T21:09:49.121737"
+      "timestamp": "2025-07-16T21:10:04.172429"
     },
     {
       "test": "Python Requirements",
@@ -24,16 +24,16 @@
         "total_dependencies": 11,
         "critical_deps_present": true
       },
-      "timestamp": "2025-07-16T21:09:49.121803"
+      "timestamp": "2025-07-16T21:10:04.172484"
     },
     {
       "test": "Git Status",
-      "success": false,
-      "message": "Uncommitted changes detected",
+      "success": true,
+      "message": "Repository is clean",
       "details": {
-        "changes": " D ignore-build.sh\n M requirements.txt\n M vercel.json\n?? deploy_debug.py\n"
+        "branch": "main"
       },
-      "timestamp": "2025-07-16T21:09:49.133159"
+      "timestamp": "2025-07-16T21:10:04.195723"
     },
     {
       "test": "Environment Variables",
@@ -49,7 +49,7 @@
           "XAI_API_KEY"
         ]
       },
-      "timestamp": "2025-07-16T21:09:49.133266"
+      "timestamp": "2025-07-16T21:10:04.195817"
     },
     {
       "test": "API /api/health",
@@ -58,7 +58,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:09:49.140989"
+      "timestamp": "2025-07-16T21:10:04.202620"
     },
     {
       "test": "API /api/portfolio",
@@ -67,7 +67,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:09:49.143366"
+      "timestamp": "2025-07-16T21:10:04.204745"
     },
     {
       "test": "API /api/analysis",
@@ -76,7 +76,7 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:09:49.145490"
+      "timestamp": "2025-07-16T21:10:04.206443"
     },
     {
       "test": "API /api/storage/stats",
@@ -85,12 +85,12 @@
       "details": {
         "status_code": 403
       },
-      "timestamp": "2025-07-16T21:09:49.147268"
+      "timestamp": "2025-07-16T21:10:04.208158"
     }
   ],
   "summary": {
     "total_tests": 8,
-    "passed": 2,
-    "failed": 6
+    "passed": 3,
+    "failed": 5
   }
 }
