@@ -34,21 +34,11 @@
       "runtime": "python3.12",
       "maxDuration": 60
     },
-
     "api/app.py": {
       "runtime": "python3.12",
       "maxDuration": 30
     }
   },
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/next",
-      "config": {
-        "outputDirectory": "frontend/.next"
-      }
-    }
-  ],
   "routes": [
     {
       "src": "/api/agents/risk",
@@ -90,7 +80,6 @@
       "dest": "/api/supervisor.py",
       "methods": ["GET", "POST"]
     },
-
     {
       "src": "/api/app",
       "dest": "/api/app.py",
