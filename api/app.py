@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
+
 """
 Multi-Agent Portfolio Analysis API - Vercel Serverless
 Simple HTTP handler optimized for Vercel deployment
 """
 
-import os
 import json
-import sqlite3
 import yfinance as yf
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from urllib.parse import parse_qs
 
-def get_stock_analysis(ticker: str) -> Dict[str, Any]:
+def get_stock_analysis(ticker: str):
     """Get basic stock analysis for a ticker"""
     try:
         # Fetch stock data
@@ -28,86 +26,85 @@ def get_stock_analysis(ticker: str) -> Dict[str, Any]:
         change = current_price - previous_price
         change_pct = (change / previous_price) * 100 if previous_price != 0 else 0
         
-        volatility = data['Close'].pct_change().std()
+        # Calculate volatility
+        volatility = data['Close'].pct_change().std() * 100
         
-        # Determine risk level
-        if volatility > 0.05:
-            risk_level = "high"
-        elif volatility > 0.02:
-            risk_level = "medium"
+        # Determine impact level
+        if volatility > 5:
+            impact_level = "high"
+        elif volatility > 2:
+            impact_level = "medium"
         else:
-            risk_level = "low"
+            impact_level = "low"
         
         return {
             "ticker": ticker,
             "current_price": round(current_price, 2),
             "change": round(change, 2),
-            "change_percent": round(change_pct, 2),
-            "volatility": round(volatility, 4),
-            "risk_level": risk_level,
+            "change_pct": round(change_pct, 2),
+            "volatility": round(volatility, 2),
+            "impact_level": impact_level,
             "timestamp": datetime.now().isoformat(),
             "data_points": len(data)
         }
-        
+    
     except Exception as e:
         return {"error": f"Error analyzing {ticker}: {str(e)}"}
 
-def handler(request, context):
-    """Vercel serverless handler - proper format for Vercel Python runtime"""
+def get_health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "Multi-Agent Portfolio Analysis API",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/api/app?action=health",
+            "analysis": "/api/app?ticker=SYMBOL&action=analyze"
+        }
+    }
+
+def handler(request):
+    """
+    Vercel serverless function handler
+    
+    This function handles HTTP requests for the portfolio analysis API.
+    It processes different actions and returns JSON responses.
+    """
     try:
-        # Handle CORS preflight requests
-        if request.method == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                },
-                'body': ''
-            }
+        # Get request method and query parameters
+        method = getattr(request, 'method', 'GET')
         
         # Parse query parameters
-        query_params = {}
         if hasattr(request, 'args'):
-            query_params = dict(request.args)
-        elif hasattr(request, 'url') and '?' in request.url:
-            query_string = request.url.split('?', 1)[1]
-            query_params = {k: v[0] if isinstance(v, list) else v 
-                          for k, v in parse_qs(query_string).items()}
-        
-        # Parse request body
-        body = ''
-        if hasattr(request, 'get_data'):
-            body = request.get_data(as_text=True)
-        elif hasattr(request, 'data'):
-            body = request.data.decode('utf-8') if isinstance(request.data, bytes) else str(request.data)
-        
-        # Parse JSON body
-        body_data = {}
-        if body and body.strip():
-            try:
-                body_data = json.loads(body)
-            except json.JSONDecodeError:
-                pass
-        
-        # Get parameters
-        ticker = query_params.get('ticker') or body_data.get('ticker', 'AAPL')
-        action = query_params.get('action') or body_data.get('action', 'analyze')
-        
-        # Handle different actions
-        if action == 'analyze':
-            result = get_stock_analysis(ticker)
-        elif action == 'health':
-            result = {
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
-                "service": "multi-agent-portfolio-analysis"
-            }
+            # Flask-style request
+            params = request.args
+        elif hasattr(request, 'query'):
+            # Raw query string
+            params = parse_qs(request.query)
+            # Convert lists to single values
+            params = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in params.items()}
         else:
-            result = {"error": f"Unknown action: {action}"}
+            # Fallback - no parameters
+            params = {}
         
-        # Return response
+        # Get action parameter
+        action = params.get('action', 'health')
+        
+        # Route based on action
+        if action == 'health':
+            result = get_health_check()
+        elif action == 'analyze':
+            ticker = params.get('ticker', 'AAPL')
+            result = get_stock_analysis(ticker)
+        else:
+            result = {
+                "error": "Invalid action",
+                "valid_actions": ["health", "analyze"],
+                "example": "/api/app?action=health"
+            }
+        
+        # Return JSON response
         return {
             'statusCode': 200,
             'headers': {
@@ -116,29 +113,25 @@ def handler(request, context):
                 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             },
-            'body': json.dumps(result)
+            'body': json.dumps(result, indent=2)
+        }
+    
+    except Exception as e:
+        # Error response
+        error_response = {
+            "error": "Internal server error",
+            "details": str(e),
+            "timestamp": datetime.now().isoformat()
         }
         
-    except Exception as e:
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
             },
-            'body': json.dumps({"error": f"Internal server error: {str(e)}"})
+            'body': json.dumps(error_response, indent=2)
         }
 
-# For local testing
-if __name__ == "__main__":
-    # Simple test
-    class MockRequest:
-        def __init__(self):
-            self.method = 'GET'
-            self.args = {'ticker': 'AAPL', 'action': 'analyze'}
-            
-        def get_data(self, as_text=False):
-            return '{}'
-    
-    result = handler(MockRequest(), None)
-    print(json.dumps(json.loads(result['body']), indent=2)) 
+# Export handler for Vercel
+app = handler 

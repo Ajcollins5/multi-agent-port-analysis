@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Portfolio Analysis System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .btn {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .status {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            border-left: 4px solid #28a745;
+        }
+        .api-test {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        .loading {
+            display: none;
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Multi-Agent Portfolio Analysis</h1>
+        <p class="subtitle">Modern Portfolio Analysis with AI-Powered Insights</p>
+        
+        <div class="status">
+            <h3>✅ System Status: Online</h3>
+            <p>Your application has been successfully deployed and is running on Vercel serverless infrastructure.</p>
+        </div>
+
+        <div style="margin: 30px 0;">
+            <a href="/api/app?action=health" class="btn" id="testApi">🔧 Test API Health</a>
+            <a href="/api/app?ticker=AAPL&action=analyze" class="btn btn-secondary">📊 Test Analysis</a>
+        </div>
+
+        <div class="api-test">
+            <h4>API Endpoints Available:</h4>
+            <p><strong>Health Check:</strong> GET /api/app?action=health</p>
+            <p><strong>Stock Analysis:</strong> GET /api/app?ticker=AAPL&action=analyze</p>
+            <p><strong>Supervisor:</strong> POST /api/supervisor</p>
+            <p><strong>Agents:</strong> /api/agents/risk_agent.py, news_agent.py, etc.</p>
+        </div>
+
+        <div id="testResult" style="margin-top: 20px;"></div>
+        <div class="loading" id="loading">Testing API connection...</div>
+
+        <div style="margin-top: 40px;">
+            <h3>🛠️ Technical Details</h3>
+            <p><strong>Framework:</strong> Python Serverless + Next.js Frontend</p>
+            <p><strong>Deployment:</strong> Vercel with multi-region support</p>
+            <p><strong>API Functions:</strong> Risk Analysis, News Sentiment, Event Monitoring</p>
+            <p><strong>Features:</strong> Real-time analysis, Email notifications, Cron scheduling</p>
+        </div>
+    </div>
+
+    <script>
+        // Test API connection on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/api/app?action=health');
+                const data = await response.json();
+                
+                document.getElementById('testResult').innerHTML = `
+                    <div style="background: rgba(40, 167, 69, 0.2); padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4>✅ API Health Check Successful</h4>
+                        <pre style="text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow-x: auto;">
+${JSON.stringify(data, null, 2)}
+                        </pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('testResult').innerHTML = `
+                    <div style="background: rgba(220, 53, 69, 0.2); padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4>❌ API Connection Failed</h4>
+                        <p>Error: ${error.message}</p>
+                        <p>The API endpoints may still be initializing. Please try again in a moment.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -32,13 +32,6 @@
       "destination": "/api/app.py"
     }
   ],
-  "redirects": [
-    {
-      "source": "/app",
-      "destination": "/",
-      "permanent": false
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
