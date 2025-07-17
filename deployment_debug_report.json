@@ -1,0 +1,96 @@
+{
+  "timestamp": "2025-07-16T21:09:49.121395",
+  "base_url": "http://localhost:5000",
+  "duration": 0.025916,
+  "results": [
+    {
+      "test": "Vercel Config",
+      "success": true,
+      "message": "Configuration is valid",
+      "details": {
+        "python_versions": [
+          "python3.12"
+        ],
+        "function_count": 9,
+        "route_count": 24
+      },
+      "timestamp": "2025-07-16T21:09:49.121737"
+    },
+    {
+      "test": "Python Requirements",
+      "success": true,
+      "message": "Requirements file is valid",
+      "details": {
+        "total_dependencies": 11,
+        "critical_deps_present": true
+      },
+      "timestamp": "2025-07-16T21:09:49.121803"
+    },
+    {
+      "test": "Git Status",
+      "success": false,
+      "message": "Uncommitted changes detected",
+      "details": {
+        "changes": " D ignore-build.sh\n M requirements.txt\n M vercel.json\n?? deploy_debug.py\n"
+      },
+      "timestamp": "2025-07-16T21:09:49.133159"
+    },
+    {
+      "test": "Environment Variables",
+      "success": false,
+      "message": "Missing required environment variables: SMTP_SERVER, SENDER_EMAIL, TO_EMAIL",
+      "details": {
+        "missing": [
+          "SMTP_SERVER",
+          "SENDER_EMAIL",
+          "TO_EMAIL"
+        ],
+        "present": [
+          "XAI_API_KEY"
+        ]
+      },
+      "timestamp": "2025-07-16T21:09:49.133266"
+    },
+    {
+      "test": "API /api/health",
+      "success": false,
+      "message": "HTTP 403: ",
+      "details": {
+        "status_code": 403
+      },
+      "timestamp": "2025-07-16T21:09:49.140989"
+    },
+    {
+      "test": "API /api/portfolio",
+      "success": false,
+      "message": "HTTP 403: ",
+      "details": {
+        "status_code": 403
+      },
+      "timestamp": "2025-07-16T21:09:49.143366"
+    },
+    {
+      "test": "API /api/analysis",
+      "success": false,
+      "message": "HTTP 403: ",
+      "details": {
+        "status_code": 403
+      },
+      "timestamp": "2025-07-16T21:09:49.145490"
+    },
+    {
+      "test": "API /api/storage/stats",
+      "success": false,
+      "message": "HTTP 403: ",
+      "details": {
+        "status_code": 403
+      },
+      "timestamp": "2025-07-16T21:09:49.147268"
+    }
+  ],
+  "summary": {
+    "total_tests": 8,
+    "passed": 2,
+    "failed": 6
+  }
+}

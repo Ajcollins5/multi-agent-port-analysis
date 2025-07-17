@@ -15,11 +15,11 @@ python-dotenv==1.0.0
 python-dateutil==2.8.2
 pytz==2023.3
 
-# Optional: Multi-agent framework (if using autogen endpoints)
-# pyautogen==0.1.15
+# Multi-agent framework for autogen endpoints
+pyautogen==0.1.15
 
-# Optional: Database backends (enable as needed)
-# redis==5.0.1
+# Database backends for enhanced storage
+redis==5.0.1
 # psycopg2-binary==2.9.7
 
 # Optional: Data analysis libraries (enable if needed)
