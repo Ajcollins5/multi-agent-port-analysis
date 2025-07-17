@@ -315,6 +315,160 @@ ENVIRONMENT=production
 DEBUG=false
 ```
 
+## Vercel Deployment Setup
+
+### Step-by-Step Environment Variable Configuration
+
+⚠️ **Critical Warning**: Missing environment variables will cause runtime failures in the multi-agent system. All required variables must be properly configured.
+
+#### 1. Access Vercel Dashboard
+1. Log into your [Vercel Dashboard](https://vercel.com/dashboard)
+2. Navigate to your project
+3. Click on **Settings** tab
+4. Select **Environment Variables** from the left sidebar
+
+#### 2. Add XAI_API_KEY (Required)
+1. Click **Add New** environment variable
+2. **Key**: `XAI_API_KEY`
+3. **Value**: Your Grok API key value (e.g., `xai-aBJmxv3MlpQOUfnjamcRs2VOB3kGpJBlEHY2QstvR7SP9CP2BZWYzFVcOxvaGLlBf6OQX4g0J6g72IBD`)
+4. **Environments**: Select all (Production, Preview, Development)
+5. ✅ **Check "Sensitive"** to encrypt the value
+6. Click **Save**
+
+#### 3. Add Email Configuration (Required)
+Add each of these variables following the same process:
+
+**SMTP Server Configuration:**
+- **Key**: `SMTP_SERVER`
+- **Value**: `smtp.gmail.com` (or your email provider's SMTP server)
+- **Environments**: All
+- **Sensitive**: ✅ Recommended
+
+**SMTP Port:**
+- **Key**: `SMTP_PORT`
+- **Value**: `587` (or your provider's port)
+- **Environments**: All
+- **Sensitive**: No
+
+**Sender Email:**
+- **Key**: `SENDER_EMAIL`
+- **Value**: Your email address (e.g., `your-email@gmail.com`)
+- **Environments**: All
+- **Sensitive**: ✅ Recommended
+
+**Email Password:**
+- **Key**: `SENDER_PASSWORD`
+- **Value**: Your app password (not regular password)
+- **Environments**: All
+- **Sensitive**: ✅ **Required**
+
+**Recipient Email:**
+- **Key**: `TO_EMAIL`
+- **Value**: Alert recipient email (e.g., `recipient@example.com`)
+- **Environments**: All
+- **Sensitive**: ✅ Recommended
+
+#### 4. Add Optional Configuration Variables
+Based on your requirements from `api/environment.example`:
+
+**Database Configuration (Optional):**
+- **Key**: `DATABASE_URL`
+- **Value**: `postgresql://user:password@host:port/database`
+- **Sensitive**: ✅ **Required**
+
+- **Key**: `REDIS_URL`
+- **Value**: `redis://user:password@host:port`
+- **Sensitive**: ✅ **Required**
+
+**System Configuration:**
+- **Key**: `VERCEL_URL`
+- **Value**: `https://your-project.vercel.app`
+- **Sensitive**: No
+
+- **Key**: `CRON_SECRET`
+- **Value**: Generate a secure random string
+- **Sensitive**: ✅ **Required**
+
+- **Key**: `ENVIRONMENT`
+- **Value**: `production`
+- **Sensitive**: No
+
+**Portfolio Configuration:**
+- **Key**: `DEFAULT_PORTFOLIO`
+- **Value**: `AAPL,GOOGL,MSFT,AMZN,TSLA`
+- **Sensitive**: No
+
+**Threshold Configuration:**
+- **Key**: `HIGH_VOLATILITY_THRESHOLD`
+- **Value**: `0.05`
+- **Sensitive**: No
+
+- **Key**: `API_SECRET_KEY`
+- **Value**: Generate a secure random string
+- **Sensitive**: ✅ **Required**
+
+#### 5. Alternative: CLI Method for Legacy Secrets
+If you prefer using the Vercel CLI (not recommended for new projects):
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Login to Vercel
+vercel login
+
+# Add secrets (legacy method)
+vercel secrets add xai-api-key "your_xai_api_key_value"
+vercel secrets add smtp-server "smtp.gmail.com"
+vercel secrets add sender-email "your-email@gmail.com"
+vercel secrets add sender-password "your_app_password"
+```
+
+**Note**: The dashboard method is preferred as it's more secure and easier to manage.
+
+#### 6. Verification Steps
+1. **Check All Variables**: Ensure all required variables are added
+2. **Test Deployment**: Deploy your project and test functionality
+3. **Monitor Logs**: Check Vercel function logs for any missing variable errors
+4. **Test Email Alerts**: Verify email notifications work correctly
+5. **Test API Endpoints**: Ensure all multi-agent system features work
+
+#### 7. Common Issues and Solutions
+
+**Missing XAI_API_KEY:**
+- **Error**: `No API key configured`
+- **Solution**: Add `XAI_API_KEY` with your Grok API key
+
+**Email Configuration Issues:**
+- **Error**: `SMTP authentication failed`
+- **Solution**: Use app password for Gmail, not regular password
+
+**Database Connection Issues:**
+- **Error**: `Database connection failed`
+- **Solution**: Verify `DATABASE_URL` format and credentials
+
+**Runtime Failures:**
+- **Error**: `Environment variable not found`
+- **Solution**: Ensure all variables are added to all environments (Production, Preview, Development)
+
+### Gmail App Password Setup
+For Gmail SMTP configuration:
+1. Go to [Google Account Settings](https://myaccount.google.com/)
+2. Navigate to **Security** > **2-Step Verification**
+3. Scroll down to **App passwords**
+4. Generate a new app password for "Mail"
+5. Use this app password (not your regular password) for `SENDER_PASSWORD`
+
+### Security Best Practices
+- ✅ Always mark sensitive variables as "Sensitive" in Vercel
+- ✅ Use strong, unique passwords for all credentials
+- ✅ Never commit environment variables to version control
+- ✅ Regularly rotate API keys and passwords
+- ✅ Use database connection strings with proper authentication
+- ✅ Monitor Vercel function logs for security issues
+
+**⚠️ Critical**: The multi-agent system requires all environment variables to be properly configured. Missing or incorrect variables will cause runtime failures, broken email notifications, and analysis errors.
+
 ## Contributing
 
 1. Fork the repository
