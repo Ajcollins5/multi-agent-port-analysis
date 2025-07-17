@@ -55,19 +55,19 @@
     },
     {
       "source": "/favicon.ico",
-      "destination": "/frontend/public/favicon.ico"
+      "destination": "/favicon.ico"
     },
     {
       "source": "/robots.txt",
-      "destination": "/frontend/public/robots.txt"
+      "destination": "/robots.txt"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/frontend/public/sitemap.xml"
+      "destination": "/sitemap.xml"
     },
     {
       "source": "/manifest.json",
-      "destination": "/frontend/public/manifest.json"
+      "destination": "/manifest.json"
     },
     {
       "source": "/dashboard/(.*)",
