@@ -2,6 +2,11 @@
   "version": 2,
   "name": "multi-agent-portfolio-analysis",
   "functions": {
+    "api/app.py": {
+      "runtime": "python3.12",
+      "memory": 1024,
+      "maxDuration": 60
+    },
     "api/agents/risk_agent.py": {
       "runtime": "python3.12",
       "maxDuration": 30
@@ -33,10 +38,6 @@
     "api/supervisor.py": {
       "runtime": "python3.12",
       "maxDuration": 60
-    },
-    "api/app.py": {
-      "runtime": "python3.12",
-      "maxDuration": 30
     }
   },
   "routes": [
