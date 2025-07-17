@@ -104,19 +104,19 @@
     },
     {
       "src": "/favicon.ico",
-      "dest": "/frontend/favicon.ico"
+      "dest": "/frontend/public/favicon.ico"
     },
     {
       "src": "/robots.txt",
-      "dest": "/frontend/robots.txt"
+      "dest": "/frontend/public/robots.txt"
     },
     {
       "src": "/sitemap.xml",
-      "dest": "/frontend/sitemap.xml"
+      "dest": "/frontend/public/sitemap.xml"
     },
     {
       "src": "/manifest.json",
-      "dest": "/frontend/manifest.json"
+      "dest": "/frontend/public/manifest.json"
     },
     {
       "src": "^/dashboard(/.*)?$",
@@ -144,7 +144,7 @@
     },
     {
       "src": "/",
-      "dest": "/frontend/index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/(.*)",
@@ -152,11 +152,6 @@
     }
   ],
   "redirects": [
-    {
-      "source": "/dashboard",
-      "destination": "/",
-      "permanent": false
-    },
     {
       "source": "/app",
       "destination": "/",
