@@ -98,10 +98,12 @@ class PreBuildOptimizer:
             if "api/app.py" not in functions:
                 self.errors.append("api/app.py not configured in functions")
             
-            # Check Python runtime
+            # Check function configurations (runtime is auto-detected by Vercel)
             for func_name, func_config in functions.items():
-                if func_config.get("runtime") != "python3.12":
-                    self.warnings.append(f"Function {func_name} not using python3.12 runtime")
+                if "memory" not in func_config:
+                    self.warnings.append(f"Function {func_name} missing memory configuration")
+                if "maxDuration" not in func_config:
+                    self.warnings.append(f"Function {func_name} missing maxDuration configuration")
             
             if self.errors:
                 self.log("❌ vercel.json validation failed", "ERROR")
@@ -281,14 +283,14 @@ def lazy_import_storage():
             "warnings": self.warnings,
             "functions": {
                 "api/app.py": {
-                    "runtime": "python3.12",
                     "memory": 1024,
-                    "timeout": 60
+                    "timeout": 60,
+                    "note": "Python 3.12 runtime auto-detected by Vercel"
                 },
                 "main.py": {
-                    "runtime": "python3.12", 
                     "memory": 512,
-                    "timeout": 30
+                    "timeout": 30,
+                    "note": "Python 3.12 runtime auto-detected by Vercel"
                 }
             }
         }
