@@ -1,0 +1,42 @@
+# Multi-Agent Portfolio Analysis - Environment Configuration
+
+# AI/ML Configuration
+XAI_API_KEY=your_xai_api_key_here
+
+# Email Configuration (SMTP)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your_app_password_here
+TO_EMAIL=recipient@example.com
+
+# Database Configuration (Optional)
+DATABASE_URL=postgresql://user:password@host:port/database
+REDIS_URL=redis://user:password@host:port
+
+# Vercel Configuration
+VERCEL_URL=https://your-project.vercel.app
+CRON_SECRET=your_secure_cron_secret_here
+
+# Environment
+ENVIRONMENT=production
+
+# Portfolio Configuration
+DEFAULT_PORTFOLIO=AAPL,GOOGL,MSFT,AMZN,TSLA
+
+# Thresholds
+HIGH_VOLATILITY_THRESHOLD=0.05
+MEDIUM_VOLATILITY_THRESHOLD=0.02
+EMAIL_ALERT_THRESHOLD=0.05
+
+# Scheduling
+DEFAULT_ANALYSIS_INTERVAL=60
+BACKGROUND_PROCESSING=true
+
+# Security
+API_SECRET_KEY=your_secret_key_here
+CORS_ORIGINS=https://your-frontend.vercel.app
+
+# Logging
+LOG_LEVEL=INFO
+ENABLE_LOG_FILE=false 

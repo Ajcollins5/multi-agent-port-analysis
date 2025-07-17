@@ -1,24 +1,216 @@
 {
   "version": 2,
   "name": "multi-agent-portfolio-analysis",
+  "functions": {
+    "api/agents/risk_agent.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/agents/news_agent.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/agents/event_sentinel.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/agents/knowledge_curator.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/notifications/email_handler.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/scheduler/cron_handler.py": {
+      "runtime": "python3.12",
+      "maxDuration": 60
+    },
+    "api/database/storage_manager.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/supervisor.py": {
+      "runtime": "python3.12",
+      "maxDuration": 60
+    },
+    "api/main.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    },
+    "api/app.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    }
+  },
   "builds": [
     {
-      "src": "api/main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/app.py",
-      "use": "@vercel/python"
+      "src": "frontend/package.json",
+      "use": "@vercel/next",
+      "config": {
+        "outputDirectory": "frontend/.next"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/agents/risk",
+      "dest": "/api/agents/risk_agent.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/agents/news",
+      "dest": "/api/agents/news_agent.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/agents/events",
+      "dest": "/api/agents/event_sentinel.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/agents/knowledge",
+      "dest": "/api/agents/knowledge_curator.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/notifications/email",
+      "dest": "/api/notifications/email_handler.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/scheduler/cron",
+      "dest": "/api/scheduler/cron_handler.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/storage",
+      "dest": "/api/database/storage_manager.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/supervisor",
+      "dest": "/api/supervisor.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/main",
+      "dest": "/api/main.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/app",
+      "dest": "/api/app.py",
+      "methods": ["GET", "POST"]
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/app.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/_next/static/(.*)",
+      "dest": "/frontend/_next/static/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/_next/image(.*)",
+      "dest": "/frontend/_next/image$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/frontend/favicon.ico"
+    },
+    {
+      "src": "/robots.txt",
+      "dest": "/frontend/robots.txt"
+    },
+    {
+      "src": "/sitemap.xml",
+      "dest": "/frontend/sitemap.xml"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/frontend/manifest.json"
+    },
+    {
+      "src": "^/dashboard(/.*)?$",
+      "dest": "/frontend/dashboard$1"
+    },
+    {
+      "src": "^/analysis(/.*)?$",
+      "dest": "/frontend/analysis$1"
+    },
+    {
+      "src": "^/knowledge(/.*)?$",
+      "dest": "/frontend/knowledge$1"
+    },
+    {
+      "src": "^/events(/.*)?$",
+      "dest": "/frontend/events$1"
+    },
+    {
+      "src": "^/scheduler(/.*)?$",
+      "dest": "/frontend/scheduler$1"
+    },
+    {
+      "src": "^/settings(/.*)?$",
+      "dest": "/frontend/settings$1"
+    },
+    {
+      "src": "/",
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/app.py"
+      "dest": "/frontend/$1"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/dashboard",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/app",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/streamlit",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Authorization, X-Cron-Secret"
+        }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ],
   "env": {
@@ -27,15 +219,29 @@
     "SMTP_PORT": "@smtp_port",
     "SENDER_EMAIL": "@sender_email",
     "SENDER_PASSWORD": "@sender_password",
-    "TO_EMAIL": "@to_email"
+    "TO_EMAIL": "@to_email",
+    "DATABASE_URL": "@database_url",
+    "REDIS_URL": "@redis_url",
+    "CRON_SECRET": "@cron_secret",
+    "VERCEL_URL": "@vercel_url",
+    "ENVIRONMENT": "@environment",
+    "DEFAULT_PORTFOLIO": "@default_portfolio",
+    "HIGH_VOLATILITY_THRESHOLD": "@high_volatility_threshold",
+    "API_SECRET_KEY": "@api_secret_key"
   },
-  "functions": {
-    "api/main.py": {
-      "maxDuration": 30
-    },
-    "api/app.py": {
-      "maxDuration": 30
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.12",
+      "NODE_VERSION": "18"
     }
   },
-  "regions": ["iad1"]
+  "installCommand": "cd frontend && npm install",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "ignoreCommand": "bash ignore-build.sh",
+  "regions": ["iad1", "sfo1"],
+  "github": {
+    "enabled": true,
+    "silent": true
+  }
 } 

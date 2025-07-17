@@ -1,0 +1,203 @@
+name: Portfolio Analysis Cron
+
+on:
+  schedule:
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      analysis_type:
+        description: 'Type of analysis to run'
+        required: true
+        default: 'portfolio_analysis'
+        type: choice
+        options:
+          - portfolio_analysis
+          - risk_assessment
+          - event_monitoring
+          - knowledge_curation
+      portfolio:
+        description: 'Portfolio tickers (comma-separated)'
+        required: false
+        default: 'AAPL,GOOGL,MSFT,AMZN,TSLA'
+        type: string
+
+jobs:
+  trigger-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up environment
+      run: |
+        echo "🚀 Starting portfolio analysis cron job..."
+        echo "⏰ Scheduled run at: $(date)"
+        echo "🔗 Target URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}"
+        
+    - name: Trigger Portfolio Analysis
+      run: |
+        # Get portfolio from input or use default
+        PORTFOLIO="${{ github.event.inputs.portfolio || 'AAPL,GOOGL,MSFT,AMZN,TSLA' }}"
+        ANALYSIS_TYPE="${{ github.event.inputs.analysis_type || 'portfolio_analysis' }}"
+        
+        echo "📊 Analysis Type: $ANALYSIS_TYPE"
+        echo "💼 Portfolio: $PORTFOLIO"
+        
+        # Convert comma-separated string to JSON array
+        PORTFOLIO_JSON=$(echo "$PORTFOLIO" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+        
+        # Trigger cron job
+        RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOYMENT_URL }}/api/scheduler/cron" \
+          -H "Content-Type: application/json" \
+          -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+          -d "{
+            \"action\": \"check_jobs\",
+            \"secret\": \"${{ secrets.CRON_SECRET }}\"
+          }" \
+          -w "HTTP_STATUS:%{http_code}")
+        
+        HTTP_STATUS=$(echo "$RESPONSE" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+        RESPONSE_BODY=$(echo "$RESPONSE" | sed 's/HTTP_STATUS:[0-9]*$//')
+        
+        echo "📡 HTTP Status: $HTTP_STATUS"
+        echo "📋 Response: $RESPONSE_BODY"
+        
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ Cron job triggered successfully"
+        else
+          echo "❌ Cron job failed with status $HTTP_STATUS"
+          exit 1
+        fi
+        
+    - name: Trigger Supervisor Analysis
+      run: |
+        # Get portfolio from input or use default
+        PORTFOLIO="${{ github.event.inputs.portfolio || 'AAPL,GOOGL,MSFT,AMZN,TSLA' }}"
+        
+        # Convert comma-separated string to JSON array
+        PORTFOLIO_JSON=$(echo "$PORTFOLIO" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+        
+        echo "🤖 Triggering supervisor analysis..."
+        
+        # Trigger comprehensive portfolio analysis
+        RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOYMENT_URL }}/api/supervisor" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"action\": \"analyze_portfolio\",
+            \"portfolio\": $PORTFOLIO_JSON
+          }" \
+          -w "HTTP_STATUS:%{http_code}")
+        
+        HTTP_STATUS=$(echo "$RESPONSE" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+        RESPONSE_BODY=$(echo "$RESPONSE" | sed 's/HTTP_STATUS:[0-9]*$//')
+        
+        echo "📡 HTTP Status: $HTTP_STATUS"
+        echo "📋 Response: $RESPONSE_BODY"
+        
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ Supervisor analysis completed successfully"
+          
+          # Parse response to check for high-risk events
+          if echo "$RESPONSE_BODY" | grep -q '"portfolio_risk":"HIGH"'; then
+            echo "🚨 HIGH RISK PORTFOLIO DETECTED!"
+            echo "::warning::High risk detected in portfolio analysis"
+          fi
+          
+          if echo "$RESPONSE_BODY" | grep -q '"critical_alerts"'; then
+            echo "⚠️ Critical alerts found in portfolio"
+            echo "::warning::Critical alerts detected in portfolio"
+          fi
+          
+        else
+          echo "❌ Supervisor analysis failed with status $HTTP_STATUS"
+          exit 1
+        fi
+        
+    - name: Health Check All Agents
+      run: |
+        echo "🔍 Running health checks on all agents..."
+        
+        AGENTS=("risk" "news" "events" "knowledge")
+        FAILED_AGENTS=()
+        
+        for agent in "${AGENTS[@]}"; do
+          echo "🔍 Checking $agent agent..."
+          
+          RESPONSE=$(curl -s -X GET "${{ secrets.VERCEL_DEPLOYMENT_URL }}/api/agents/$agent" \
+            -w "HTTP_STATUS:%{http_code}")
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ $agent agent is healthy"
+          else
+            echo "❌ $agent agent failed health check (status: $HTTP_STATUS)"
+            FAILED_AGENTS+=("$agent")
+          fi
+        done
+        
+        if [ ${#FAILED_AGENTS[@]} -gt 0 ]; then
+          echo "::error::Failed agents: ${FAILED_AGENTS[*]}"
+          exit 1
+        else
+          echo "✅ All agents are healthy"
+        fi
+        
+    - name: Test Email Notifications
+      run: |
+        echo "📧 Testing email notification system..."
+        
+        RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOYMENT_URL }}/api/notifications/email" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "action": "test_config"
+          }' \
+          -w "HTTP_STATUS:%{http_code}")
+        
+        HTTP_STATUS=$(echo "$RESPONSE" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+        RESPONSE_BODY=$(echo "$RESPONSE" | sed 's/HTTP_STATUS:[0-9]*$//')
+        
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ Email system is operational"
+        else
+          echo "⚠️ Email system test failed (status: $HTTP_STATUS)"
+          echo "::warning::Email notification system may be down"
+        fi
+        
+    - name: Storage Health Check
+      run: |
+        echo "💾 Checking storage system..."
+        
+        RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOYMENT_URL }}/api/storage" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "action": "status"
+          }' \
+          -w "HTTP_STATUS:%{http_code}")
+        
+        HTTP_STATUS=$(echo "$RESPONSE" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+        RESPONSE_BODY=$(echo "$RESPONSE" | sed 's/HTTP_STATUS:[0-9]*$//')
+        
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ Storage system is operational"
+          echo "📊 Storage status: $RESPONSE_BODY"
+        else
+          echo "❌ Storage system check failed (status: $HTTP_STATUS)"
+          echo "::error::Storage system is down"
+          exit 1
+        fi
+        
+    - name: Summary Report
+      run: |
+        echo "📋 Portfolio Analysis Cron Job Summary"
+        echo "======================================"
+        echo "⏰ Execution Time: $(date)"
+        echo "🔗 Target URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}"
+        echo "💼 Portfolio: ${{ github.event.inputs.portfolio || 'AAPL,GOOGL,MSFT,AMZN,TSLA' }}"
+        echo "📊 Analysis Type: ${{ github.event.inputs.analysis_type || 'portfolio_analysis' }}"
+        echo "✅ Cron job completed successfully"
+        echo ""
+        echo "🔍 Next scheduled run: $(date -d '+1 hour')"
+        echo "📈 Monitor results at: ${{ secrets.VERCEL_DEPLOYMENT_URL }}" 
