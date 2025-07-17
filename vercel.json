@@ -34,10 +34,7 @@
       "runtime": "python3.12",
       "maxDuration": 60
     },
-    "api/main.py": {
-      "runtime": "python3.12",
-      "maxDuration": 30
-    },
+
     "api/app.py": {
       "runtime": "python3.12",
       "maxDuration": 30
@@ -93,11 +90,7 @@
       "dest": "/api/supervisor.py",
       "methods": ["GET", "POST"]
     },
-    {
-      "src": "/api/main",
-      "dest": "/api/main.py",
-      "methods": ["GET", "POST"]
-    },
+
     {
       "src": "/api/app",
       "dest": "/api/app.py",
