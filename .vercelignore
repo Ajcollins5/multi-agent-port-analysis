@@ -1,22 +1,31 @@
-# Development and testing files
-test_tools.py
-run_tests.py
-*_test.py
-*/test_*
-*/tests/
-*/__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Git and version control
+.git/
+.gitignore
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments (only exclude if in root)
+/venv/
+/env/
+/.venv/
+/.env
+/.env.local
+/.env.development.local
+/.env.test.local
+/.env.production.local
 
 # IDE and editor files
 .vscode/
@@ -24,49 +33,31 @@ venv/
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
+.sublime-project
+.sublime-workspace
 
-# Local development files
+# Development and testing files
+test_tools.py
+run_tests.py
+*_test.py
+*/test_*
+*/tests/
+vercel_setup_check.py
+deploy_debug.py
+deployment_verification.py
 migrate_to_beta.py
-optimizations.py
-worker.py
-cloud_config.py
-main.py
-# Note: api/app.py is ESSENTIAL for deployment - do not ignore
-
-# IMPORTANT: Do NOT ignore these essential API files:
-# !api/
-# !api/app.py
-# !api/agents/
-# !api/notifications/
-# !api/database/
-# !api/scheduler/
-# !api/supervisor.py
+test_vercel.py
 
 # Log files
 *.log
 logs/
 log/
 
-# Documentation (exclude from deployment)
-*.md
-!README.md
-!DEPLOYMENT.md
-
-# Database files
+# Database files (local development only)
 *.db
 *.sqlite
 *.sqlite3
 knowledge.db
-
-# Cache and build files
-.cache/
-.next/
-.turbo/
-dist/
-build/
-out/
 
 # Node.js
 node_modules/
@@ -75,24 +66,20 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Frontend specific
+# Frontend build artifacts
 frontend/.next/
 frontend/out/
 frontend/node_modules/
 frontend/.env*
 frontend/.vercel
 
-# Python virtual environments
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Build and cache directories
+.cache/
+.next/
+.turbo/
+dist/
+build/
+out/
 
 # Coverage reports
 htmlcov/
@@ -100,7 +87,6 @@ htmlcov/
 .nox/
 .coverage
 .coverage.*
-.cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -111,64 +97,22 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# Backup files
+# Temporary files
+*.tmp
+*.temp
 *.bak
 *.backup
 *.orig
 
-# Temporary files
-*.tmp
-*.temp 
+# Package files
+*.egg-info/
+.eggs/
+
+# NOTE: We deliberately DO NOT ignore the following essential files:
+# - api/ directory and all its contents (including api/app.py)
+# - cloud_config.py
+# - main.py
+# - *.md files (deployment documentation is important)
+# - requirements.txt
+# - vercel.json
+# - Any config files needed for deployment 

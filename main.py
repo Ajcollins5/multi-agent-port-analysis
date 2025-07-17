@@ -15,11 +15,17 @@ if not XAI_API_KEY:
 
 os.environ["XAI_API_KEY"] = XAI_API_KEY
 
-# SQLite for knowledge base
-conn = sqlite3.connect('knowledge.db')
-cursor = conn.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS insights (ticker TEXT, insight TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-conn.commit()
+# Import storage manager for serverless-compatible storage
+try:
+    from api.database.storage_manager import StorageManager
+    storage_manager = StorageManager()
+    print("✅ Storage manager initialized successfully")
+except ImportError:
+    print("⚠️  Storage manager not available, using fallback in-memory storage")
+    storage_manager = None
+
+# Fallback in-memory storage for serverless environment
+INSIGHTS_STORAGE = []
 
 # Email configuration with environment variables and defensive checks
 def send_email(subject, body, to_email=None):
@@ -148,32 +154,46 @@ def determine_impact_level(ticker: str):
     
     return f"Impact level for {ticker}: {impact_level} (volatility: {volatility:.4f})"
 
-# Tool: Store insight
+# Tool: Store insight (serverless-compatible)
 @supervisor.register_for_execution()
 @supervisor.register_for_llm(name="store_insight", description="Store analysis in DB")
 def store_insight(ticker: str, insight: str):
-    cursor.execute("INSERT INTO insights (ticker, insight) VALUES (?, ?)", (ticker, insight))
-    conn.commit()
-    return "Insight stored."
+    """Store insight using serverless-compatible storage"""
+    if storage_manager:
+        result = storage_manager.store_insight(ticker, insight, "supervisor")
+        return f"Insight stored: {result.get('stored_in', 'in-memory')}"
+    else:
+        # Fallback to in-memory storage
+        insight_data = {
+            "ticker": ticker,
+            "insight": insight,
+            "timestamp": datetime.now().isoformat()
+        }
+        INSIGHTS_STORAGE.append(insight_data)
+        return "Insight stored in memory."
 
 # Knowledge Evolution Functions
 def query_past_insights(ticker: str, limit: int = 5):
-    """Query past insights from SQLite database for knowledge evolution"""
-    cursor.execute("""
-        SELECT insight, timestamp 
-        FROM insights 
-        WHERE ticker = ? 
-        ORDER BY timestamp DESC 
-        LIMIT ?
-    """, (ticker, limit))
-    
-    results = cursor.fetchall()
-    if results:
-        # Format past insights for system message
-        past_insights = []
-        for insight, timestamp in results:
-            past_insights.append(f"[{timestamp}] {insight}")
-        return " | ".join(past_insights)
+    """Query past insights for knowledge evolution (serverless-compatible)"""
+    if storage_manager:
+        result = storage_manager.get_insights(ticker, limit)
+        if result.get("success"):
+            insights = result.get("insights", [])
+            past_insights = []
+            for insight in insights:
+                timestamp = insight.get("timestamp", "")
+                content = insight.get("insight", "")
+                past_insights.append(f"[{timestamp}] {content}")
+            return " | ".join(past_insights) if past_insights else "No previous insights found."
+    else:
+        # Fallback to in-memory storage
+        filtered_insights = [i for i in INSIGHTS_STORAGE if i["ticker"] == ticker]
+        sorted_insights = sorted(filtered_insights, key=lambda x: x["timestamp"], reverse=True)[:limit]
+        if sorted_insights:
+            past_insights = []
+            for insight in sorted_insights:
+                past_insights.append(f"[{insight['timestamp']}] {insight['insight']}")
+            return " | ".join(past_insights)
     return "No previous insights found."
 
 def update_agent_system_messages(ticker: str):
@@ -195,7 +215,7 @@ def update_agent_system_messages(ticker: str):
 @supervisor.register_for_execution()
 @supervisor.register_for_llm(name="refine_insight", description="Refine and update existing insights using Grok's reasoning")
 def refine_insight(ticker: str, new_insight: str):
-    """Refine insights by comparing with past knowledge and updating database"""
+    """Refine insights by comparing with past knowledge and updating database (serverless-compatible)"""
     # Get recent insights for comparison
     past_insights = query_past_insights(ticker, limit=3)
     
@@ -203,10 +223,18 @@ def refine_insight(ticker: str, new_insight: str):
     refined_insight = f"REFINED: {new_insight} | SYNTHESIS: Compared with past insights [{past_insights}], this analysis shows evolution in understanding."
     
     # Store the refined insight
-    cursor.execute("INSERT INTO insights (ticker, insight) VALUES (?, ?)", (ticker, refined_insight))
-    conn.commit()
-    
-    return f"Refined insight stored for {ticker}. Knowledge evolution applied."
+    if storage_manager:
+        result = storage_manager.store_insight(ticker, refined_insight, "supervisor")
+        return f"Refined insight stored for {ticker}. Knowledge evolution applied. Storage: {result.get('stored_in', 'in-memory')}"
+    else:
+        # Fallback to in-memory storage
+        insight_data = {
+            "ticker": ticker,
+            "insight": refined_insight,
+            "timestamp": datetime.now().isoformat()
+        }
+        INSIGHTS_STORAGE.append(insight_data)
+        return f"Refined insight stored for {ticker}. Knowledge evolution applied (in-memory)."
 
 @supervisor.register_for_execution()
 @supervisor.register_for_llm(name="query_knowledge_evolution", description="Query knowledge evolution patterns for better synthesis")

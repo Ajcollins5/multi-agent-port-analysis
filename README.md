@@ -110,6 +110,67 @@ TO_EMAIL=recipient@example.com
 - Test the API endpoints: `https://your-project.vercel.app/api/main`
 - Access the dashboard: `https://your-project.vercel.app/`
 
+### Fixing Vercel Deployment Cancellations
+
+If your Vercel deployments are being cancelled automatically, this is likely due to the "Ignored Build Step" setting being configured incorrectly. Follow these steps to fix it:
+
+1. **Access Vercel Dashboard**
+   - Log into your Vercel account at [vercel.com](https://vercel.com)
+   - Navigate to your project dashboard
+   - Click on your "multi-agent-portfolio-analysis" project
+
+2. **Navigate to Project Settings**
+   - In your project dashboard, click on the **"Settings"** tab
+   - Look for the **"Git"** section in the left sidebar
+   - Click on **"Git Integration"** or **"Git"**
+
+3. **Locate Ignored Build Step Setting**
+   - Scroll down to find the **"Ignored Build Step"** section
+   - This setting determines when Vercel should skip building your project
+   - The current command may be set to something like `exit 0`
+
+4. **Fix the Build Step Command**
+   - **❌ PROBLEM**: If set to `exit 0`, this will **always cancel** builds
+   - **✅ SOLUTION**: Change it to one of these proper change detection commands:
+   
+   **Option A - Git Diff (Recommended):**
+   ```bash
+   git diff HEAD^ HEAD --quiet; [ $? -eq 1 ]
+   ```
+   
+   **Option B - Simple Git Diff:**
+   ```bash
+   git diff HEAD HEAD^ --quiet
+   ```
+   
+   **Option C - Leave Empty:**
+   - Simply clear the field completely to build on every commit
+
+5. **Save and Test**
+   - Click **"Save"** to apply the changes
+   - Trigger a new deployment by pushing a commit or manually redeploying
+   - Monitor the deployment logs to ensure builds are no longer being cancelled
+
+6. **Understanding the Commands**
+   - `git diff HEAD^ HEAD --quiet`: Compares current commit to previous commit
+   - `--quiet`: Suppresses output, only returns exit code
+   - Exit code 0 = no changes (skip build)
+   - Exit code 1 = changes detected (proceed with build)
+
+### ⚠️ **Warning: Commands That Always Cancel Builds**
+
+**Never use these commands** as they will always cancel your deployments:
+- `exit 0` - Always exits with success (always cancels)
+- `true` - Always returns true (always cancels)
+- `echo "skip"` - Always succeeds (always cancels)
+
+### 🔧 **Troubleshooting Tips**
+
+- **If builds still cancel**: Check that your repository has actual changes between commits
+- **If builds always run**: Consider using git diff commands to optimize build frequency
+- **For testing**: Temporarily clear the ignored build step field to force builds
+- **For debugging**: Check the "Functions" tab in Vercel dashboard for detailed logs
+
 ## Usage
 
 ### Local Development

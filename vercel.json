@@ -1,49 +1,110 @@
 {
   "version": 2,
   "name": "multi-agent-portfolio-analysis",
+  "runtime": "python3.12",
   "functions": {
     "api/app.py": {
       "runtime": "python3.12",
       "memory": 1024,
-      "maxDuration": 60
+      "maxDuration": 60,
+      "environment": {
+        "PYTHON_VERSION": "3.12"
+      }
+    },
+    "main.py": {
+      "runtime": "python3.12",
+      "memory": 512,
+      "maxDuration": 30,
+      "environment": {
+        "PYTHON_VERSION": "3.12"
+      }
     },
     "api/agents/risk_agent.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 30
     },
     "api/agents/news_agent.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 30
     },
     "api/agents/event_sentinel.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 30
     },
     "api/agents/knowledge_curator.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 30
     },
     "api/notifications/email_handler.py": {
       "runtime": "python3.12",
+      "memory": 256,
       "maxDuration": 30
     },
     "api/scheduler/cron_handler.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 60
     },
     "api/database/storage_manager.py": {
       "runtime": "python3.12",
+      "memory": 512,
       "maxDuration": 30
     },
     "api/supervisor.py": {
       "runtime": "python3.12",
+      "memory": 1024,
       "maxDuration": 60
     }
   },
+  "builds": [
+    {
+      "src": "api/app.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.12"
+      }
+    },
+    {
+      "src": "requirements.txt",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12"
+      }
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "buildCommand": "cd frontend && npm run build",
+        "outputDirectory": "frontend/.next"
+      }
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/app.py"
+    },
+    {
+      "source": "/agents/(.*)",
+      "destination": "/api/agents/$1"
+    },
+    {
+      "source": "/supervisor",
+      "destination": "/api/supervisor.py"
+    },
+    {
+      "source": "/cron/(.*)",
+      "destination": "/api/scheduler/cron_handler.py"
+    },
+    {
+      "source": "/main",
+      "destination": "/main.py"
     },
     {
       "source": "/_next/static/(.*)",
@@ -128,7 +189,31 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Authorization, X-Cron-Secret"
+          "value": "X-Requested-With, Content-Type, Authorization, X-Cron-Secret, X-API-Key"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:"
         }
       ]
     },
@@ -140,18 +225,55 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot))",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
     }
   ],
   "build": {
     "env": {
       "PYTHON_VERSION": "3.12",
-      "NODE_VERSION": "18"
+      "NODE_VERSION": "18",
+      "PIP_CACHE_DIR": "/tmp/pip-cache"
     }
   },
-  "installCommand": "cd frontend && npm install",
-  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "pip install -r requirements.txt && cd frontend && npm install",
+  "buildCommand": "python3 scripts/pre-build.py && echo 'Python dependencies installed via requirements.txt' && cd frontend && npm run build",
   "outputDirectory": "frontend/.next",
-  "regions": ["iad1", "sfo1"],
+  "regions": ["iad1", "sfo1", "fra1"],
+  "crons": [
+    {
+      "path": "/api/scheduler/cron_handler.py",
+      "schedule": "0 */6 * * *"
+    }
+  ],
   "github": {
     "enabled": true,
     "silent": true
