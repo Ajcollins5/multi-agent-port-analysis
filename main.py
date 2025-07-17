@@ -9,7 +9,11 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 # Set up xAI Grok API key (get from x.ai/api)
-os.environ["XAI_API_KEY"] = "xai-xxxxxxxxxxxxxx"
+XAI_API_KEY = os.getenv('XAI_API_KEY')
+if not XAI_API_KEY:
+    raise ValueError('XAI_API_KEY environment variable is required. Set it in Vercel dashboard or local .env.')
+
+os.environ["XAI_API_KEY"] = XAI_API_KEY
 
 # SQLite for knowledge base
 conn = sqlite3.connect('knowledge.db')
@@ -17,17 +21,26 @@ cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS insights (ticker TEXT, insight TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
 conn.commit()
 
-# Email configuration
-def send_email(subject, body, to_email="austin@example.com"):
+# Email configuration with environment variables and defensive checks
+def send_email(subject, body, to_email=None):
     """Send email notifications for high impact events and system alerts"""
     try:
-        # Email configuration - Update these with your email settings
-        # NOTE: For Gmail, you need to use an App Password, not your regular password
-        # Go to: Google Account > Security > 2-Step Verification > App passwords
-        smtp_server = "smtp.gmail.com"
-        smtp_port = 587
-        sender_email = "your-email@gmail.com"  # Update with your email
-        sender_password = "your-app-password"  # Update with your app password
+        # Get email configuration from environment variables
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        sender_email = os.getenv("SENDER_EMAIL")
+        sender_password = os.getenv("SENDER_PASSWORD")
+        default_to_email = os.getenv("TO_EMAIL", "austin@example.com")
+        
+        # Defensive checks for required email configuration
+        if not sender_email:
+            raise ValueError("SENDER_EMAIL environment variable is required for email notifications. Set it in Vercel dashboard or local .env.")
+        if not sender_password:
+            raise ValueError("SENDER_PASSWORD environment variable is required for email notifications. Set it in Vercel dashboard or local .env.")
+        
+        # Use provided to_email or default from environment
+        if to_email is None:
+            to_email = default_to_email
         
         # Create message
         message = MIMEMultipart()

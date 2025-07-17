@@ -4,8 +4,11 @@ import requests
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
-# Environment variables
-XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+# Environment variables with defensive checks
+XAI_API_KEY = os.environ.get("XAI_API_KEY")
+if not XAI_API_KEY:
+    raise ValueError("XAI_API_KEY environment variable is required for SupervisorAgent. Set it in Vercel dashboard or local .env.")
+
 VERCEL_URL = os.environ.get("VERCEL_URL", "")
 
 class SupervisorAgent:

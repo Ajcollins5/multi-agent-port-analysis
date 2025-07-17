@@ -50,9 +50,11 @@ class Config:
 # Initialize config (will raise error if required vars are missing)
 try:
     Config.validate_config()
+    print("✅ Configuration validated successfully")
 except ValueError as e:
-    print(f"⚠️  Configuration Warning: {e}")
-    print("Some features may not work properly without proper configuration")
+    print(f"❌ Configuration Error: {e}")
+    print("Set required environment variables in Vercel dashboard or local .env file")
+    raise  # Re-raise the error to prevent silent failures
 
 
 # Storage management helper
