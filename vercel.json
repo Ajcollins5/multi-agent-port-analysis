@@ -142,22 +142,6 @@
       ]
     }
   ],
-  "env": {
-    "XAI_API_KEY": "@xai_api_key",
-    "SMTP_SERVER": "@smtp_server",
-    "SMTP_PORT": "@smtp_port",
-    "SENDER_EMAIL": "@sender_email",
-    "SENDER_PASSWORD": "@sender_password",
-    "TO_EMAIL": "@to_email",
-    "DATABASE_URL": "@database_url",
-    "REDIS_URL": "@redis_url",
-    "CRON_SECRET": "@cron_secret",
-    "VERCEL_URL": "@vercel_url",
-    "ENVIRONMENT": "@environment",
-    "DEFAULT_PORTFOLIO": "@default_portfolio",
-    "HIGH_VOLATILITY_THRESHOLD": "@high_volatility_threshold",
-    "API_SECRET_KEY": "@api_secret_key"
-  },
   "build": {
     "env": {
       "PYTHON_VERSION": "3.12",
