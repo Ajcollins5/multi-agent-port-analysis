@@ -56,57 +56,17 @@
       "runtime": "python3.9",
       "memory": 512,
       "maxDuration": 60
+    },
+    "api/config/env_validator.py": {
+      "runtime": "python3.9",
+      "memory": 256,
+      "maxDuration": 30
     }
   },
-  "builds": [
+  "rewrites": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "out"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/app/(.*)",
-      "dest": "/api/app.py"
-    },
-    {
-      "src": "/api/agents/risk/(.*)",
-      "dest": "/api/agents/risk_agent.py"
-    },
-    {
-      "src": "/api/agents/news/(.*)",
-      "dest": "/api/agents/news_agent.py"
-    },
-    {
-      "src": "/api/agents/events/(.*)",
-      "dest": "/api/agents/event_sentinel.py"
-    },
-    {
-      "src": "/api/agents/knowledge/(.*)",
-      "dest": "/api/agents/knowledge_curator.py"
-    },
-    {
-      "src": "/api/supervisor/(.*)",
-      "dest": "/api/supervisor.py"
-    },
-    {
-      "src": "/api/database/(.*)",
-      "dest": "/api/database/storage_manager.py"
-    },
-    {
-      "src": "/api/notifications/(.*)",
-      "dest": "/api/notifications/email_handler.py"
-    },
-    {
-      "src": "/api/scheduler/(.*)",
-      "dest": "/api/scheduler/cron_handler.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/out/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/app.py"
     }
   ],
   "headers": [
@@ -137,5 +97,5 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD"
+  "buildCommand": "cd frontend && npm run build"
 } 
