@@ -12,7 +12,8 @@ TO_EMAIL=recipient@example.com
 
 # Database Configuration (Optional)
 DATABASE_URL=postgresql://user:password@host:port/database
-REDIS_URL=redis://user:password@host:port
+# Redis has been migrated to Supabase
+# REDIS_URL=redis://user:password@host:port
 
 # Vercel Configuration
 VERCEL_URL=https://your-project.vercel.app

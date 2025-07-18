@@ -109,12 +109,13 @@ class EnvironmentValidator:
                 "default": "",
                 "validation": self._validate_database_url
             },
-            "REDIS_URL": {
-                "description": "Redis cache URL",
-                "type": str,
-                "default": "",
-                "validation": self._validate_redis_url
-            },
+            # Redis has been migrated to Supabase
+            # "REDIS_URL": {
+            #     "description": "Redis cache URL",
+            #     "type": str,
+            #     "default": "",
+            #     "validation": self._validate_redis_url
+            # },
             "VERCEL_URL": {
                 "description": "Vercel deployment URL",
                 "type": str,
@@ -319,13 +320,14 @@ class EnvironmentValidator:
             return {"valid": False, "error": "Invalid database URL format"}
         return {"valid": True}
     
-    def _validate_redis_url(self, value: str) -> Dict[str, Any]:
-        """Validate Redis URL"""
-        if not value:
-            return {"valid": True}  # Optional
-        if not value.startswith("redis://"):
-            return {"valid": False, "error": "Invalid Redis URL format"}
-        return {"valid": True}
+    # Redis validation removed - migrated to Supabase
+    # def _validate_redis_url(self, value: str) -> Dict[str, Any]:
+    #     """Validate Redis URL"""
+    #     if not value:
+    #         return {"valid": True}  # Optional
+    #     if not value.startswith("redis://"):
+    #         return {"valid": False, "error": "Invalid Redis URL format"}
+    #     return {"valid": True}
     
     def _validate_url(self, value: str) -> Dict[str, Any]:
         """Validate URL format"""

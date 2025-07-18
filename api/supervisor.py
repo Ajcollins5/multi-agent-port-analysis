@@ -382,27 +382,21 @@ class SupervisorAgent:
     def _call_agent(self, agent_type: str, action: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Call individual agent with error handling"""
         try:
-            # Direct import call for agents (since we're in same codebase)
+            # DEPRECATED: Direct import calls for legacy agents
+            # These have been migrated to Supabase-based agents
+            # Use the new SupabaseRiskAgent and BaseAgent classes instead
+            
             if agent_type == "risk":
-                from agents.risk_agent import fetch_stock_data, analyze_portfolio_risk
-                if action == "analyze_stock":
-                    return fetch_stock_data(data["ticker"])
-                elif action == "portfolio_risk":
-                    return analyze_portfolio_risk(data.get("portfolio", []))
+                # Use agents.supabase_risk_agent.SupabaseRiskAgent instead
+                return {"success": False, "error": "Legacy risk agent deprecated. Use SupabaseRiskAgent instead."}
                     
             elif agent_type == "news":
-                from agents.news_agent import analyze_news_sentiment, get_market_news_impact
-                if action == "analyze_sentiment":
-                    return analyze_news_sentiment(data["ticker"])
-                elif action == "market_impact":
-                    return get_market_news_impact(data.get("tickers", []))
+                # Use BaseAgent with news analysis capabilities instead
+                return {"success": False, "error": "Legacy news agent deprecated. Use BaseAgent with news analysis instead."}
                     
             elif agent_type == "events":
-                from agents.event_sentinel import detect_portfolio_events, generate_event_summary
-                if action == "detect_events":
-                    return detect_portfolio_events(data.get("portfolio", []))
-                elif action == "event_summary":
-                    return generate_event_summary(data.get("time_window", 24))
+                # Use BaseAgent with event detection capabilities instead
+                return {"success": False, "error": "Legacy event agent deprecated. Use BaseAgent with event detection instead."}
                     
             elif agent_type == "knowledge":
                 from agents.knowledge_curator import curate_knowledge_quality, identify_knowledge_gaps

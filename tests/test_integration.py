@@ -1,31 +1,36 @@
 #!/usr/bin/env python3
-
 """
-Integration Tests for Multi-Agent Portfolio Analysis System
-Tests end-to-end workflows, data flow, and agent coordination
+Integration tests for multi-agent portfolio analysis system
+
+⚠️  DEPRECATED: These tests need to be rewritten for the new Supabase agents
+The legacy agent imports have been migrated to Supabase-based architecture.
+Many tests in this file will fail until updated to use:
+- SupabaseRiskAgent instead of risk_agent
+- BaseAgent with news analysis instead of news_agent  
+- BaseAgent with event detection instead of event_sentinel
+- New Supabase manager instead of storage_manager
 """
 
 import unittest
-import json
+import asyncio
 import os
 import sys
-from unittest.mock import Mock, patch, MagicMock
+import json
+from unittest.mock import patch, MagicMock, Mock
 from datetime import datetime, timedelta
-import asyncio
-import time
-import warnings
-warnings.filterwarnings("ignore")
 
-# Add project root to path
+# Add the parent directory to the path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import all components
-from api.agents.risk_agent import fetch_stock_data, analyze_portfolio_risk
-from api.agents.news_agent import analyze_news_sentiment, get_market_news_impact
-from api.agents.event_sentinel import detect_portfolio_events, generate_event_summary
+# DEPRECATED: Legacy agent imports have been migrated to Supabase
+# These tests need to be updated to use the new Supabase agents
+# from api.agents.risk_agent import fetch_stock_data, analyze_portfolio_risk
+# from api.agents.news_agent import analyze_news_sentiment, get_market_news_impact
+# from api.agents.event_sentinel import detect_portfolio_events, generate_event_summary
 from api.agents.knowledge_curator import curate_knowledge_quality, identify_knowledge_gaps
 from api.supervisor import SupervisorAgent
-from api.database.storage_manager import DatabaseManager
+from api.database.supabase_manager import supabase_manager
 from api.notifications.email_handler import send_email, send_bulk_notifications
 from api.scheduler.cron_handler import CronManager
 

@@ -41,7 +41,7 @@ class PreBuildOptimizer:
         
         optional_vars = [
             "DATABASE_URL",
-            "REDIS_URL",
+            # "REDIS_URL",  # Migrated to Supabase
             "CRON_SECRET",
             "SMTP_SERVER",
             "SMTP_PORT"
@@ -168,7 +168,7 @@ class PreBuildOptimizer:
         essential_files = [
             "api/app.py",
             "main.py",
-            "api/database/storage_manager.py",
+            "api/database/supabase_manager.py",
             "api/supervisor.py"
         ]
         
@@ -254,8 +254,8 @@ def lazy_import_email():
 # Database imports (only when needed)
 def lazy_import_storage():
     try:
-        from api.database.storage_manager import StorageManager
-        return StorageManager
+        from api.database.supabase_manager import supabase_manager
+        return supabase_manager
     except ImportError:
         return None
 """

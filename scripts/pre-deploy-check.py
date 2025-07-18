@@ -73,7 +73,7 @@ def check_python_files():
         ("api/app.py", "Main API handler"),
         ("api/supervisor.py", "Supervisor agent"),
         ("api/config/env_validator.py", "Environment validator"),
-        ("api/database/storage_manager.py", "Database storage"),
+                    ("api/database/supabase_manager.py", "Supabase database manager"),
         ("api/agents/risk_agent.py", "Risk agent"),
         ("api/agents/news_agent.py", "News agent"),
         ("api/agents/event_sentinel.py", "Event sentinel"),

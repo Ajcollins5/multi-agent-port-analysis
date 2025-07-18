@@ -8,7 +8,11 @@ python-dateutil==2.8.2
 # Additional dependencies for our system
 typing-extensions==4.8.0
 
+# Supabase integration
+supabase==2.10.0
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+
 # Optional dependencies (conditionally imported)
-# These are used if available but code has fallbacks
-redis==5.0.1
+# Redis removed - migrating to Supabase
 # Note: sendgrid is optional and handled in enhanced_email_service.py 

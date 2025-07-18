@@ -480,16 +480,17 @@ jobs:
         try:
             start_time = datetime.now()
             
-            # Import and execute based on job type
+            # DEPRECATED: Legacy agent imports have been migrated to Supabase
+            # Note: These job types need to be updated to use the new Supabase agents
             if job_config.get("job_type") == "portfolio_analysis":
-                from ..agents.risk_agent import analyze_portfolio_risk
-                result = analyze_portfolio_risk(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
+                # TODO: Replace with SupabaseRiskAgent.analyze_portfolio_risk
+                result = {"success": False, "error": "Legacy portfolio analysis deprecated. Use SupabaseRiskAgent instead."}
             elif job_config.get("job_type") == "risk_assessment":
-                from ..agents.risk_agent import analyze_portfolio_risk
-                result = analyze_portfolio_risk(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
+                # TODO: Replace with SupabaseRiskAgent.analyze_portfolio_risk
+                result = {"success": False, "error": "Legacy risk assessment deprecated. Use SupabaseRiskAgent instead."}
             elif job_config.get("job_type") == "event_monitoring":
-                from ..agents.event_sentinel import detect_portfolio_events
-                result = detect_portfolio_events(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
+                # TODO: Replace with BaseAgent event detection capabilities
+                result = {"success": False, "error": "Legacy event monitoring deprecated. Use BaseAgent with event detection instead."}
             else:
                 return {"success": False, "error": "Unknown job type"}
             

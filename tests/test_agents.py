@@ -1,26 +1,31 @@
 #!/usr/bin/env python3
-
 """
-Comprehensive Unit Tests for Multi-Agent Portfolio Analysis System
-Tests for RiskAgent, NewsAgent, EventSentinel, KnowledgeCurator, and Supervisor
+Unit tests for individual agents
+
+⚠️  DEPRECATED: These tests need to be rewritten for the new Supabase agents  
+The legacy agent imports have been migrated to Supabase-based architecture.
+Many tests in this file will fail until updated to use:
+- SupabaseRiskAgent instead of risk_agent
+- BaseAgent with news analysis instead of news_agent
+- BaseAgent with event detection instead of event_sentinel
 """
 
 import unittest
-import json
+import asyncio
 import os
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
 import sys
-import warnings
-warnings.filterwarnings("ignore")
+import json
+from unittest.mock import patch, MagicMock, Mock
+from datetime import datetime, timedelta
 
-# Add project root to path
+# Add the parent directory to the path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import agents
-from api.agents.risk_agent import fetch_stock_data, determine_impact_level, analyze_portfolio_risk, send_email
-from api.agents.news_agent import analyze_news_sentiment, get_market_news_impact, estimate_news_impact
-from api.agents.event_sentinel import detect_portfolio_events, generate_event_summary, detect_correlations
+# DEPRECATED: Legacy agent imports have been migrated to Supabase
+# These tests need to be updated to use the new Supabase agents
+# from api.agents.risk_agent import fetch_stock_data, determine_impact_level, analyze_portfolio_risk, send_email
+# from api.agents.news_agent import analyze_news_sentiment, get_market_news_impact, estimate_news_impact
+# from api.agents.event_sentinel import detect_portfolio_events, generate_event_summary, detect_correlations
 from api.agents.knowledge_curator import curate_knowledge_quality, identify_knowledge_gaps, refine_insight
 from api.supervisor import SupervisorAgent
 

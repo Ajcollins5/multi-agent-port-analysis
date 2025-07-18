@@ -64,7 +64,7 @@ jobs:
         python -m py_compile api/agents/knowledge_curator.py
         python -m py_compile api/notifications/email_handler.py
         python -m py_compile api/scheduler/cron_handler.py
-        python -m py_compile api/database/storage_manager.py
+                  python -m py_compile api/database/supabase_manager.py
         python -m py_compile api/supervisor.py
         python -m py_compile api/main.py
         python -m py_compile api/app.py
