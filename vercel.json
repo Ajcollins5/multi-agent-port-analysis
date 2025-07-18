@@ -1,35 +1,112 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
   "functions": {
     "api/app.py": {
+      "runtime": "python3.9",
       "memory": 1024,
       "maxDuration": 60
     },
-    "api/agents/*.py": {
+    "api/agents/risk_agent.py": {
+      "runtime": "python3.9",
       "memory": 512,
       "maxDuration": 30
     },
-    "api/scheduler/cron_handler.py": {
+    "api/agents/news_agent.py": {
+      "runtime": "python3.9",
       "memory": 512,
-      "maxDuration": 60
+      "maxDuration": 30
+    },
+    "api/agents/event_sentinel.py": {
+      "runtime": "python3.9",
+      "memory": 512,
+      "maxDuration": 30
+    },
+    "api/agents/knowledge_curator.py": {
+      "runtime": "python3.9",
+      "memory": 512,
+      "maxDuration": 30
     },
     "api/supervisor.py": {
+      "runtime": "python3.9",
       "memory": 1024,
       "maxDuration": 60
     },
     "api/database/storage_manager.py": {
+      "runtime": "python3.9",
       "memory": 512,
       "maxDuration": 30
     },
     "api/notifications/email_handler.py": {
+      "runtime": "python3.9",
       "memory": 256,
       "maxDuration": 30
+    },
+    "api/notifications/enhanced_email_service.py": {
+      "runtime": "python3.9",
+      "memory": 256,
+      "maxDuration": 30
+    },
+    "api/scheduler/cron_handler.py": {
+      "runtime": "python3.9",
+      "memory": 512,
+      "maxDuration": 60
+    },
+    "api/scheduler/vercel_cron_jobs.py": {
+      "runtime": "python3.9",
+      "memory": 512,
+      "maxDuration": 60
     }
   },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/app.py"
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "out"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/app/(.*)",
+      "dest": "/api/app.py"
+    },
+    {
+      "src": "/api/agents/risk/(.*)",
+      "dest": "/api/agents/risk_agent.py"
+    },
+    {
+      "src": "/api/agents/news/(.*)",
+      "dest": "/api/agents/news_agent.py"
+    },
+    {
+      "src": "/api/agents/events/(.*)",
+      "dest": "/api/agents/event_sentinel.py"
+    },
+    {
+      "src": "/api/agents/knowledge/(.*)",
+      "dest": "/api/agents/knowledge_curator.py"
+    },
+    {
+      "src": "/api/supervisor/(.*)",
+      "dest": "/api/supervisor.py"
+    },
+    {
+      "src": "/api/database/(.*)",
+      "dest": "/api/database/storage_manager.py"
+    },
+    {
+      "src": "/api/notifications/(.*)",
+      "dest": "/api/notifications/email_handler.py"
+    },
+    {
+      "src": "/api/scheduler/(.*)",
+      "dest": "/api/scheduler/cron_handler.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/out/$1"
     }
   ],
   "headers": [
@@ -53,8 +130,12 @@
   ],
   "crons": [
     {
-      "path": "/api/scheduler/cron_handler.py",
+      "path": "/api/scheduler/cron_handler",
       "schedule": "0 */6 * * *"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD"
 } 

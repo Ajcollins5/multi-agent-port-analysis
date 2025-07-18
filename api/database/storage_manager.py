@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union
 import threading
+import logging
 
 # Environment variables for database configuration
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -17,501 +18,853 @@ _events_storage = []
 _knowledge_storage = []
 
 class StorageManager:
-    """Manages data storage with fallback from external DB to in-memory"""
+    """Enhanced storage manager with SQLite persistence for insights, events, and knowledge evolution"""
     
-    def __init__(self):
+    def __init__(self, db_path: str = "portfolio_analysis.db"):
+        self.db_path = db_path
         self.use_external_db = bool(DATABASE_URL)
         self.use_redis = bool(REDIS_URL)
+        
+        # Initialize database
+        self._init_database()
         
         if self.use_external_db:
             try:
                 self.init_external_db()
             except Exception as e:
-                print(f"Failed to initialize external DB: {e}")
+                logging.error(f"Failed to initialize external DB: {e}")
                 self.use_external_db = False
         
         if self.use_redis:
             try:
                 self.init_redis()
             except Exception as e:
-                print(f"Failed to initialize Redis: {e}")
+                logging.error(f"Failed to initialize Redis: {e}")
                 self.use_redis = False
     
-    def init_external_db(self):
-        """Initialize external database connection"""
-        # This would typically be PostgreSQL for production
-        # For now, using SQLite as fallback
-        self.db_connection = sqlite3.connect(":memory:")
-        self.init_tables()
-    
-    def init_redis(self):
-        """Initialize Redis connection"""
+    def _init_database(self):
+        """Initialize SQLite database with proper schema"""
         try:
-            import redis
-            self.redis_client = redis.from_url(REDIS_URL)
-            self.redis_client.ping()
-        except ImportError:
-            print("Redis library not installed")
-            self.use_redis = False
-        except Exception as e:
-            print(f"Redis connection failed: {e}")
-            self.use_redis = False
-    
-    def init_tables(self):
-        """Initialize database tables"""
-        if self.use_external_db:
-            cursor = self.db_connection.cursor()
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            # Insights table
-            cursor.execute('''
+            # Create insights table
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS insights (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     ticker TEXT NOT NULL,
                     insight TEXT NOT NULL,
-                    agent TEXT,
+                    agent TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    metadata TEXT
+                    volatility REAL,
+                    impact_level TEXT,
+                    confidence REAL,
+                    metadata TEXT,
+                    refined BOOLEAN DEFAULT FALSE,
+                    original_insight TEXT,
+                    INDEX(ticker),
+                    INDEX(agent),
+                    INDEX(timestamp),
+                    INDEX(impact_level)
                 )
-            ''')
+            """)
             
-            # Events table
-            cursor.execute('''
+            # Create events table
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     event_type TEXT NOT NULL,
-                    ticker TEXT,
-                    message TEXT,
-                    severity TEXT,
+                    ticker TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    severity TEXT DEFAULT 'INFO',
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    metadata TEXT
+                    volatility REAL,
+                    volume_spike REAL,
+                    portfolio_risk TEXT,
+                    correlation_data TEXT,
+                    metadata TEXT,
+                    INDEX(event_type),
+                    INDEX(ticker),
+                    INDEX(severity),
+                    INDEX(timestamp)
                 )
-            ''')
+            """)
             
-            # Knowledge evolution table
-            cursor.execute('''
+            # Create knowledge_evolution table
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_evolution (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     ticker TEXT NOT NULL,
-                    evolution_type TEXT,
+                    evolution_type TEXT NOT NULL,
                     previous_insight TEXT,
-                    refined_insight TEXT,
+                    refined_insight TEXT NOT NULL,
+                    improvement_score REAL,
+                    agent TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    metadata TEXT
+                    context TEXT,
+                    metadata TEXT,
+                    INDEX(ticker),
+                    INDEX(evolution_type),
+                    INDEX(agent),
+                    INDEX(timestamp)
                 )
-            ''')
+            """)
             
-            self.db_connection.commit()
+            # Create portfolio_analysis table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS portfolio_analysis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    portfolio_size INTEGER NOT NULL,
+                    analyzed_stocks INTEGER NOT NULL,
+                    high_impact_count INTEGER NOT NULL,
+                    portfolio_risk TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    analysis_duration REAL,
+                    agents_used TEXT,
+                    synthesis_summary TEXT,
+                    metadata TEXT,
+                    INDEX(timestamp),
+                    INDEX(portfolio_risk)
+                )
+            """)
+            
+            # Create system_metrics table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS system_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    metric_type TEXT NOT NULL,
+                    metric_value REAL NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    additional_data TEXT,
+                    INDEX(metric_type),
+                    INDEX(timestamp)
+                )
+            """)
+            
+            conn.commit()
+            conn.close()
+            logging.info("Database initialized successfully")
+            
+        except Exception as e:
+            logging.error(f"Database initialization failed: {e}")
+            raise
     
-    def store_insight(self, ticker: str, insight: str, agent: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Store insight with fallback to in-memory storage"""
+    def init_external_db(self):
+        """Initialize external database connection"""
+        # For production, this would connect to PostgreSQL
+        # For now, fallback to enhanced SQLite
+        pass
+    
+    def init_redis(self):
+        """Initialize Redis connection for caching"""
         try:
-            insight_data = {
-                "ticker": ticker,
-                "insight": insight,
-                "agent": agent,
-                "timestamp": datetime.now().isoformat(),
-                "metadata": metadata or {}
-            }
+            import redis
+            self.redis_client = redis.Redis.from_url(REDIS_URL)
+            self.redis_client.ping()
+            logging.info("Redis connection established")
+        except ImportError:
+            logging.error("Redis library not available")
+            self.use_redis = False
+            raise
+        except Exception as e:
+            logging.error(f"Redis connection failed: {e}")
+            raise
+    
+    def store_insight(self, ticker: str, insight: str, agent: Optional[str] = None, 
+                     metadata: Optional[Dict[str, Any]] = None, 
+                     volatility: Optional[float] = None,
+                     impact_level: Optional[str] = None,
+                     confidence: Optional[float] = None) -> Dict[str, Any]:
+        """Store insight with enhanced metadata"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                cursor.execute('''
-                    INSERT INTO insights (ticker, insight, agent, metadata)
-                    VALUES (?, ?, ?, ?)
-                ''', (ticker, insight, agent, json.dumps(metadata or {})))
-                self.db_connection.commit()
-                insight_data["id"] = cursor.lastrowid
+            # Prepare metadata
+            metadata_json = json.dumps(metadata) if metadata else None
             
-            # Always store in memory as backup
-            with _storage_lock:
-                _insights_storage.append(insight_data)
+            cursor.execute("""
+                INSERT INTO insights (ticker, insight, agent, volatility, impact_level, confidence, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (ticker, insight, agent or "Unknown", volatility, impact_level, confidence, metadata_json))
+            
+            insight_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
             
             # Cache in Redis if available
             if self.use_redis:
-                cache_key = f"insight:{ticker}:{datetime.now().timestamp()}"
-                self.redis_client.setex(cache_key, 3600, json.dumps(insight_data))
+                try:
+                    cache_key = f"insight:{ticker}:{insight_id}"
+                    cache_data = {
+                        "id": insight_id,
+                        "ticker": ticker,
+                        "insight": insight,
+                        "agent": agent,
+                        "timestamp": datetime.now().isoformat(),
+                        "volatility": volatility,
+                        "impact_level": impact_level,
+                        "confidence": confidence
+                    }
+                    self.redis_client.setex(cache_key, 3600, json.dumps(cache_data))
+                except Exception as e:
+                    logging.warning(f"Redis caching failed: {e}")
             
             return {
                 "success": True,
-                "insight_id": insight_data.get("id"),
-                "stored_in": self._get_storage_method()
+                "insight_id": insight_id,
+                "message": "Insight stored successfully"
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logging.error(f"Failed to store insight: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    def get_insights(self, ticker: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
-        """Retrieve insights with fallback"""
+    def get_insights(self, ticker: Optional[str] = None, limit: int = 10, 
+                    agent: Optional[str] = None, 
+                    impact_level: Optional[str] = None,
+                    time_window_hours: Optional[int] = None) -> Dict[str, Any]:
+        """Get insights with filtering and pagination"""
         try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Build query dynamically
+            query = "SELECT * FROM insights WHERE 1=1"
+            params = []
+            
+            if ticker:
+                query += " AND ticker = ?"
+                params.append(ticker)
+            
+            if agent:
+                query += " AND agent = ?"
+                params.append(agent)
+            
+            if impact_level:
+                query += " AND impact_level = ?"
+                params.append(impact_level)
+            
+            if time_window_hours:
+                cutoff_time = datetime.now() - timedelta(hours=time_window_hours)
+                query += " AND timestamp > ?"
+                params.append(cutoff_time.isoformat())
+            
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            # Convert to dictionaries
             insights = []
+            for row in rows:
+                insight = {
+                    "id": row[0],
+                    "ticker": row[1],
+                    "insight": row[2],
+                    "agent": row[3],
+                    "timestamp": row[4],
+                    "volatility": row[5],
+                    "impact_level": row[6],
+                    "confidence": row[7],
+                    "metadata": json.loads(row[8]) if row[8] else None,
+                    "refined": bool(row[9]),
+                    "original_insight": row[10]
+                }
+                insights.append(insight)
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                if ticker:
-                    cursor.execute('''
-                        SELECT ticker, insight, agent, timestamp, metadata 
-                        FROM insights 
-                        WHERE ticker = ? 
-                        ORDER BY timestamp DESC 
-                        LIMIT ?
-                    ''', (ticker, limit))
-                else:
-                    cursor.execute('''
-                        SELECT ticker, insight, agent, timestamp, metadata 
-                        FROM insights 
-                        ORDER BY timestamp DESC 
-                        LIMIT ?
-                    ''', (limit,))
-                
-                for row in cursor.fetchall():
-                    insights.append({
-                        "ticker": row[0],
-                        "insight": row[1],
-                        "agent": row[2],
-                        "timestamp": row[3],
-                        "metadata": json.loads(row[4]) if row[4] else {}
-                    })
-            
-            # Fallback to in-memory storage
-            if not insights:
-                with _storage_lock:
-                    filtered_insights = _insights_storage
-                    if ticker:
-                        filtered_insights = [i for i in _insights_storage if i["ticker"] == ticker]
-                    
-                    insights = sorted(filtered_insights, key=lambda x: x["timestamp"], reverse=True)[:limit]
+            conn.close()
             
             return {
                 "success": True,
                 "insights": insights,
-                "total_count": len(insights),
-                "source": self._get_storage_method()
+                "total_count": len(insights)
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    def store_event(self, event_type: str, ticker: str, message: str, severity: str = "INFO", metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Store event with fallback"""
-        try:
-            event_data = {
-                "event_type": event_type,
-                "ticker": ticker,
-                "message": message,
-                "severity": severity,
-                "timestamp": datetime.now().isoformat(),
-                "metadata": metadata or {}
+            logging.error(f"Failed to get insights: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "insights": []
             }
+    
+    def store_event(self, event_type: str, ticker: str, message: str, 
+                   severity: str = "INFO", 
+                   metadata: Optional[Dict[str, Any]] = None,
+                   volatility: Optional[float] = None,
+                   volume_spike: Optional[float] = None,
+                   portfolio_risk: Optional[str] = None) -> Dict[str, Any]:
+        """Store event with enhanced tracking"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                cursor.execute('''
-                    INSERT INTO events (event_type, ticker, message, severity, metadata)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (event_type, ticker, message, severity, json.dumps(metadata or {})))
-                self.db_connection.commit()
-                event_data["id"] = cursor.lastrowid
+            metadata_json = json.dumps(metadata) if metadata else None
             
-            # Always store in memory as backup
-            with _storage_lock:
-                _events_storage.append(event_data)
+            cursor.execute("""
+                INSERT INTO events (event_type, ticker, message, severity, volatility, 
+                                   volume_spike, portfolio_risk, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (event_type, ticker, message, severity, volatility, volume_spike, 
+                  portfolio_risk, metadata_json))
+            
+            event_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
             
             return {
                 "success": True,
-                "event_id": event_data.get("id"),
-                "stored_in": self._get_storage_method()
+                "event_id": event_id,
+                "message": "Event stored successfully"
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logging.error(f"Failed to store event: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    def get_events(self, event_type: Optional[str] = None, ticker: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
-        """Retrieve events with fallback"""
+    def get_events(self, ticker: Optional[str] = None, 
+                  event_type: Optional[str] = None,
+                  severity: Optional[str] = None,
+                  time_window_hours: int = 24,
+                  limit: int = 50) -> Dict[str, Any]:
+        """Get events with filtering"""
         try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Build query
+            query = "SELECT * FROM events WHERE 1=1"
+            params = []
+            
+            if ticker:
+                query += " AND ticker = ?"
+                params.append(ticker)
+            
+            if event_type:
+                query += " AND event_type = ?"
+                params.append(event_type)
+            
+            if severity:
+                query += " AND severity = ?"
+                params.append(severity)
+            
+            if time_window_hours:
+                cutoff_time = datetime.now() - timedelta(hours=time_window_hours)
+                query += " AND timestamp > ?"
+                params.append(cutoff_time.isoformat())
+            
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            # Convert to dictionaries
             events = []
+            for row in rows:
+                event = {
+                    "id": row[0],
+                    "event_type": row[1],
+                    "ticker": row[2],
+                    "message": row[3],
+                    "severity": row[4],
+                    "timestamp": row[5],
+                    "volatility": row[6],
+                    "volume_spike": row[7],
+                    "portfolio_risk": row[8],
+                    "metadata": json.loads(row[10]) if row[10] else None
+                }
+                events.append(event)
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                query = "SELECT event_type, ticker, message, severity, timestamp, metadata FROM events WHERE 1=1"
-                params = []
-                
-                if event_type:
-                    query += " AND event_type = ?"
-                    params.append(event_type)
-                
-                if ticker:
-                    query += " AND ticker = ?"
-                    params.append(ticker)
-                
-                query += " ORDER BY timestamp DESC LIMIT ?"
-                params.append(limit)
-                
-                cursor.execute(query, params)
-                
-                for row in cursor.fetchall():
-                    events.append({
-                        "event_type": row[0],
-                        "ticker": row[1],
-                        "message": row[2],
-                        "severity": row[3],
-                        "timestamp": row[4],
-                        "metadata": json.loads(row[5]) if row[5] else {}
-                    })
-            
-            # Fallback to in-memory storage
-            if not events:
-                with _storage_lock:
-                    filtered_events = _events_storage
-                    if event_type:
-                        filtered_events = [e for e in filtered_events if e["event_type"] == event_type]
-                    if ticker:
-                        filtered_events = [e for e in filtered_events if e["ticker"] == ticker]
-                    
-                    events = sorted(filtered_events, key=lambda x: x["timestamp"], reverse=True)[:limit]
+            conn.close()
             
             return {
                 "success": True,
                 "events": events,
-                "total_count": len(events),
-                "source": self._get_storage_method()
+                "total_count": len(events)
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    def store_knowledge_evolution(self, ticker: str, evolution_type: str, previous_insight: str, refined_insight: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Store knowledge evolution data"""
-        try:
-            evolution_data = {
-                "ticker": ticker,
-                "evolution_type": evolution_type,
-                "previous_insight": previous_insight,
-                "refined_insight": refined_insight,
-                "timestamp": datetime.now().isoformat(),
-                "metadata": metadata or {}
+            logging.error(f"Failed to get events: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "events": []
             }
+    
+    def store_knowledge_evolution(self, ticker: str, evolution_type: str, 
+                                 previous_insight: str, refined_insight: str,
+                                 improvement_score: float, agent: str,
+                                 context: Optional[str] = None,
+                                 metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Store knowledge evolution tracking"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                cursor.execute('''
-                    INSERT INTO knowledge_evolution (ticker, evolution_type, previous_insight, refined_insight, metadata)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (ticker, evolution_type, previous_insight, refined_insight, json.dumps(metadata or {})))
-                self.db_connection.commit()
-                evolution_data["id"] = cursor.lastrowid
+            metadata_json = json.dumps(metadata) if metadata else None
             
-            # Always store in memory as backup
-            with _storage_lock:
-                _knowledge_storage.append(evolution_data)
+            cursor.execute("""
+                INSERT INTO knowledge_evolution (ticker, evolution_type, previous_insight, 
+                                               refined_insight, improvement_score, agent, context, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (ticker, evolution_type, previous_insight, refined_insight, 
+                  improvement_score, agent, context, metadata_json))
+            
+            evolution_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
             
             return {
                 "success": True,
-                "evolution_id": evolution_data.get("id"),
-                "stored_in": self._get_storage_method()
+                "evolution_id": evolution_id,
+                "message": "Knowledge evolution stored successfully"
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logging.error(f"Failed to store knowledge evolution: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    def get_knowledge_evolution(self, ticker: Optional[str] = None, evolution_type: Optional[str] = None, limit: int = 20) -> Dict[str, Any]:
-        """Retrieve knowledge evolution data"""
+    def get_knowledge_evolution(self, ticker: Optional[str] = None,
+                               evolution_type: Optional[str] = None,
+                               agent: Optional[str] = None,
+                               limit: int = 20) -> Dict[str, Any]:
+        """Get knowledge evolution with trend analysis"""
         try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Build query
+            query = "SELECT * FROM knowledge_evolution WHERE 1=1"
+            params = []
+            
+            if ticker:
+                query += " AND ticker = ?"
+                params.append(ticker)
+            
+            if evolution_type:
+                query += " AND evolution_type = ?"
+                params.append(evolution_type)
+            
+            if agent:
+                query += " AND agent = ?"
+                params.append(agent)
+            
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            # Convert to dictionaries and analyze trends
             evolutions = []
+            for row in rows:
+                evolution = {
+                    "id": row[0],
+                    "ticker": row[1],
+                    "evolution_type": row[2],
+                    "previous_insight": row[3],
+                    "refined_insight": row[4],
+                    "improvement_score": row[5],
+                    "agent": row[6],
+                    "timestamp": row[7],
+                    "context": row[8],
+                    "metadata": json.loads(row[9]) if row[9] else None
+                }
+                evolutions.append(evolution)
             
-            if self.use_external_db:
-                cursor = self.db_connection.cursor()
-                query = "SELECT ticker, evolution_type, previous_insight, refined_insight, timestamp, metadata FROM knowledge_evolution WHERE 1=1"
-                params = []
-                
-                if ticker:
-                    query += " AND ticker = ?"
-                    params.append(ticker)
-                
-                if evolution_type:
-                    query += " AND evolution_type = ?"
-                    params.append(evolution_type)
-                
-                query += " ORDER BY timestamp DESC LIMIT ?"
-                params.append(limit)
-                
-                cursor.execute(query, params)
-                
-                for row in cursor.fetchall():
-                    evolutions.append({
-                        "ticker": row[0],
-                        "evolution_type": row[1],
-                        "previous_insight": row[2],
-                        "refined_insight": row[3],
-                        "timestamp": row[4],
-                        "metadata": json.loads(row[5]) if row[5] else {}
-                    })
+            # Calculate trend metrics
+            if evolutions:
+                avg_improvement = sum(e["improvement_score"] for e in evolutions) / len(evolutions)
+                trend_analysis = {
+                    "average_improvement": avg_improvement,
+                    "total_evolutions": len(evolutions),
+                    "agents_involved": list(set(e["agent"] for e in evolutions)),
+                    "evolution_types": list(set(e["evolution_type"] for e in evolutions))
+                }
+            else:
+                trend_analysis = {
+                    "average_improvement": 0,
+                    "total_evolutions": 0,
+                    "agents_involved": [],
+                    "evolution_types": []
+                }
             
-            # Fallback to in-memory storage
-            if not evolutions:
-                with _storage_lock:
-                    filtered_evolutions = _knowledge_storage
-                    if ticker:
-                        filtered_evolutions = [e for e in filtered_evolutions if e["ticker"] == ticker]
-                    if evolution_type:
-                        filtered_evolutions = [e for e in filtered_evolutions if e["evolution_type"] == evolution_type]
-                    
-                    evolutions = sorted(filtered_evolutions, key=lambda x: x["timestamp"], reverse=True)[:limit]
+            conn.close()
             
             return {
                 "success": True,
                 "evolutions": evolutions,
-                "total_count": len(evolutions),
-                "source": self._get_storage_method()
+                "trend_analysis": trend_analysis
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logging.error(f"Failed to get knowledge evolution: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "evolutions": []
+            }
     
-    def get_storage_status(self) -> Dict[str, Any]:
-        """Get current storage status and configuration"""
-        return {
-            "external_db": self.use_external_db,
-            "redis": self.use_redis,
-            "environment": ENVIRONMENT,
-            "primary_storage": self._get_storage_method(),
-            "in_memory_counts": {
-                "insights": len(_insights_storage),
-                "events": len(_events_storage),
-                "knowledge_evolutions": len(_knowledge_storage)
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-    
-    def _get_storage_method(self) -> str:
-        """Get current storage method"""
-        if self.use_external_db:
-            return "external_database"
-        elif self.use_redis:
-            return "redis_cache"
-        else:
-            return "in_memory"
-    
-    def clear_storage(self, storage_type: str = "all") -> Dict[str, Any]:
-        """Clear storage (for testing/maintenance)"""
+    def store_portfolio_analysis(self, portfolio_size: int, analyzed_stocks: int,
+                               high_impact_count: int, portfolio_risk: str,
+                               analysis_duration: float, agents_used: List[str],
+                               synthesis_summary: str,
+                               metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Store portfolio analysis results"""
         try:
-            if storage_type in ["all", "insights"]:
-                if self.use_external_db:
-                    cursor = self.db_connection.cursor()
-                    cursor.execute("DELETE FROM insights")
-                    self.db_connection.commit()
-                
-                with _storage_lock:
-                    _insights_storage.clear()
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            if storage_type in ["all", "events"]:
-                if self.use_external_db:
-                    cursor = self.db_connection.cursor()
-                    cursor.execute("DELETE FROM events")
-                    self.db_connection.commit()
-                
-                with _storage_lock:
-                    _events_storage.clear()
+            agents_json = json.dumps(agents_used)
+            metadata_json = json.dumps(metadata) if metadata else None
             
-            if storage_type in ["all", "knowledge"]:
-                if self.use_external_db:
-                    cursor = self.db_connection.cursor()
-                    cursor.execute("DELETE FROM knowledge_evolution")
-                    self.db_connection.commit()
-                
-                with _storage_lock:
-                    _knowledge_storage.clear()
+            cursor.execute("""
+                INSERT INTO portfolio_analysis (portfolio_size, analyzed_stocks, high_impact_count,
+                                              portfolio_risk, analysis_duration, agents_used, 
+                                              synthesis_summary, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (portfolio_size, analyzed_stocks, high_impact_count, portfolio_risk,
+                  analysis_duration, agents_json, synthesis_summary, metadata_json))
+            
+            analysis_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
             
             return {
                 "success": True,
-                "message": f"Cleared {storage_type} storage",
-                "timestamp": datetime.now().isoformat()
+                "analysis_id": analysis_id,
+                "message": "Portfolio analysis stored successfully"
             }
             
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logging.error(f"Failed to store portfolio analysis: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def get_portfolio_metrics(self, time_window_hours: int = 24) -> Dict[str, Any]:
+        """Get portfolio metrics and trends"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cutoff_time = datetime.now() - timedelta(hours=time_window_hours)
+            
+            # Get recent analyses
+            cursor.execute("""
+                SELECT * FROM portfolio_analysis 
+                WHERE timestamp > ? 
+                ORDER BY timestamp DESC
+            """, (cutoff_time.isoformat(),))
+            
+            rows = cursor.fetchall()
+            
+            if not rows:
+                return {
+                    "success": True,
+                    "metrics": {
+                        "total_analyses": 0,
+                        "average_portfolio_size": 0,
+                        "average_high_impact": 0,
+                        "risk_distribution": {},
+                        "trend": "stable"
+                    }
+                }
+            
+            # Calculate metrics
+            total_analyses = len(rows)
+            avg_portfolio_size = sum(row[1] for row in rows) / total_analyses
+            avg_high_impact = sum(row[3] for row in rows) / total_analyses
+            
+            # Risk distribution
+            risk_distribution = {}
+            for row in rows:
+                risk = row[4]
+                risk_distribution[risk] = risk_distribution.get(risk, 0) + 1
+            
+            # Trend analysis (simple)
+            if len(rows) >= 2:
+                recent_risk = rows[0][4]
+                older_risk = rows[-1][4]
+                risk_levels = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
+                trend = "improving" if risk_levels.get(recent_risk, 2) < risk_levels.get(older_risk, 2) else "deteriorating"
+            else:
+                trend = "stable"
+            
+            conn.close()
+            
+            return {
+                "success": True,
+                "metrics": {
+                    "total_analyses": total_analyses,
+                    "average_portfolio_size": avg_portfolio_size,
+                    "average_high_impact": avg_high_impact,
+                    "risk_distribution": risk_distribution,
+                    "trend": trend
+                }
+            }
+            
+        except Exception as e:
+            logging.error(f"Failed to get portfolio metrics: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def export_insights_csv(self, ticker: Optional[str] = None, 
+                           time_window_hours: Optional[int] = None) -> Dict[str, Any]:
+        """Export insights to CSV format"""
+        try:
+            import csv
+            import io
+            
+            insights_data = self.get_insights(ticker=ticker, time_window_hours=time_window_hours, limit=1000)
+            
+            if not insights_data["success"]:
+                return insights_data
+            
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow([
+                "ID", "Ticker", "Insight", "Agent", "Timestamp", 
+                "Volatility", "Impact Level", "Confidence", "Refined"
+            ])
+            
+            # Write data
+            for insight in insights_data["insights"]:
+                writer.writerow([
+                    insight["id"],
+                    insight["ticker"],
+                    insight["insight"],
+                    insight["agent"],
+                    insight["timestamp"],
+                    insight["volatility"],
+                    insight["impact_level"],
+                    insight["confidence"],
+                    insight["refined"]
+                ])
+            
+            csv_content = output.getvalue()
+            output.close()
+            
+            return {
+                "success": True,
+                "csv_content": csv_content,
+                "filename": f"insights_{ticker or 'all'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+            
+        except Exception as e:
+            logging.error(f"Failed to export CSV: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def clear_storage(self, confirm: bool = False) -> Dict[str, Any]:
+        """Clear storage (for testing/maintenance)"""
+        if not confirm:
+            return {
+                "success": False,
+                "error": "Must confirm clearing storage"
+            }
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Clear all tables
+            cursor.execute("DELETE FROM insights")
+            cursor.execute("DELETE FROM events")
+            cursor.execute("DELETE FROM knowledge_evolution")
+            cursor.execute("DELETE FROM portfolio_analysis")
+            cursor.execute("DELETE FROM system_metrics")
+            
+            conn.commit()
+            conn.close()
+            
+            return {
+                "success": True,
+                "message": "Storage cleared successfully"
+            }
+            
+        except Exception as e:
+            logging.error(f"Failed to clear storage: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
-# Global storage manager instance
+# Global storage instance
 storage_manager = StorageManager()
 
+# Export functions for backward compatibility
+def get_insights(ticker: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
+    """Get insights using global storage manager"""
+    return storage_manager.get_insights(ticker=ticker, limit=limit)
+
+def store_insight(ticker: str, insight: str, agent: Optional[str] = None, 
+                 metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Store insight using global storage manager"""
+    return storage_manager.store_insight(ticker=ticker, insight=insight, agent=agent, metadata=metadata)
+
+# Export for Vercel
 def handler(request):
-    """Vercel serverless function handler for storage operations"""
+    """Vercel serverless function handler for StorageManager"""
     try:
         if request.method == "POST":
             body = request.get_json() or {}
-            action = body.get("action", "status")
+            action = body.get("action")
             
-            if action == "status":
-                return json.dumps(storage_manager.get_storage_status())
-            
-            elif action == "store_insight":
-                ticker = body.get("ticker", "")
-                insight = body.get("insight", "")
-                agent = body.get("agent", "")
-                metadata = body.get("metadata", {})
-                return json.dumps(storage_manager.store_insight(ticker, insight, agent, metadata))
+            if action == "store_insight":
+                ticker = body.get("ticker")
+                insight = body.get("insight")
+                if not ticker or not insight:
+                    return json.dumps({"error": "ticker and insight are required"})
+                result = storage_manager.store_insight(
+                    ticker=ticker,
+                    insight=insight,
+                    agent=body.get("agent"),
+                    metadata=body.get("metadata"),
+                    volatility=body.get("volatility"),
+                    impact_level=body.get("impact_level"),
+                    confidence=body.get("confidence")
+                )
+                return json.dumps(result)
             
             elif action == "get_insights":
-                ticker = body.get("ticker")
-                limit = body.get("limit", 10)
-                return json.dumps(storage_manager.get_insights(ticker, limit))
+                result = storage_manager.get_insights(
+                    ticker=body.get("ticker"),
+                    limit=body.get("limit", 10),
+                    agent=body.get("agent"),
+                    impact_level=body.get("impact_level"),
+                    time_window_hours=body.get("time_window_hours")
+                )
+                return json.dumps(result)
             
             elif action == "store_event":
-                event_type = body.get("event_type", "")
-                ticker = body.get("ticker", "")
-                message = body.get("message", "")
-                severity = body.get("severity", "INFO")
-                metadata = body.get("metadata", {})
-                return json.dumps(storage_manager.store_event(event_type, ticker, message, severity, metadata))
-            
-            elif action == "get_events":
                 event_type = body.get("event_type")
                 ticker = body.get("ticker")
-                limit = body.get("limit", 50)
-                return json.dumps(storage_manager.get_events(event_type, ticker, limit))
+                message = body.get("message")
+                if not event_type or not ticker or not message:
+                    return json.dumps({"error": "event_type, ticker, and message are required"})
+                result = storage_manager.store_event(
+                    event_type=event_type,
+                    ticker=ticker,
+                    message=message,
+                    severity=body.get("severity", "INFO"),
+                    metadata=body.get("metadata"),
+                    volatility=body.get("volatility"),
+                    volume_spike=body.get("volume_spike"),
+                    portfolio_risk=body.get("portfolio_risk")
+                )
+                return json.dumps(result)
             
-            elif action == "store_knowledge":
-                ticker = body.get("ticker", "")
-                evolution_type = body.get("evolution_type", "")
-                previous_insight = body.get("previous_insight", "")
-                refined_insight = body.get("refined_insight", "")
-                metadata = body.get("metadata", {})
-                return json.dumps(storage_manager.store_knowledge_evolution(ticker, evolution_type, previous_insight, refined_insight, metadata))
+            elif action == "get_events":
+                result = storage_manager.get_events(
+                    ticker=body.get("ticker"),
+                    event_type=body.get("event_type"),
+                    severity=body.get("severity"),
+                    time_window_hours=body.get("time_window_hours", 24),
+                    limit=body.get("limit", 50)
+                )
+                return json.dumps(result)
             
-            elif action == "get_knowledge":
+            elif action == "store_knowledge_evolution":
                 ticker = body.get("ticker")
                 evolution_type = body.get("evolution_type")
-                limit = body.get("limit", 20)
-                return json.dumps(storage_manager.get_knowledge_evolution(ticker, evolution_type, limit))
+                previous_insight = body.get("previous_insight")
+                refined_insight = body.get("refined_insight")
+                improvement_score = body.get("improvement_score")
+                agent = body.get("agent")
+                if not all([ticker, evolution_type, previous_insight, refined_insight, improvement_score, agent]):
+                    return json.dumps({"error": "ticker, evolution_type, previous_insight, refined_insight, improvement_score, and agent are required"})
+                result = storage_manager.store_knowledge_evolution(
+                    ticker=ticker,
+                    evolution_type=evolution_type,
+                    previous_insight=previous_insight,
+                    refined_insight=refined_insight,
+                    improvement_score=improvement_score,
+                    agent=agent,
+                    context=body.get("context"),
+                    metadata=body.get("metadata")
+                )
+                return json.dumps(result)
             
-            elif action == "clear_storage":
-                storage_type = body.get("storage_type", "all")
-                return json.dumps(storage_manager.clear_storage(storage_type))
+            elif action == "get_knowledge_evolution":
+                result = storage_manager.get_knowledge_evolution(
+                    ticker=body.get("ticker"),
+                    evolution_type=body.get("evolution_type"),
+                    agent=body.get("agent"),
+                    limit=body.get("limit", 20)
+                )
+                return json.dumps(result)
+            
+            elif action == "export_csv":
+                result = storage_manager.export_insights_csv(
+                    ticker=body.get("ticker"),
+                    time_window_hours=body.get("time_window_hours")
+                )
+                return json.dumps(result)
+            
+            elif action == "portfolio_metrics":
+                result = storage_manager.get_portfolio_metrics(
+                    time_window_hours=body.get("time_window_hours", 24)
+                )
+                return json.dumps(result)
             
             else:
                 return json.dumps({
                     "error": "Invalid action",
                     "available_actions": [
-                        "status", "store_insight", "get_insights", "store_event",
-                        "get_events", "store_knowledge", "get_knowledge", "clear_storage"
+                        "store_insight", "get_insights", "store_event", "get_events",
+                        "store_knowledge_evolution", "get_knowledge_evolution", 
+                        "export_csv", "portfolio_metrics"
                     ]
                 })
         
         else:
             return json.dumps({
                 "service": "StorageManager",
-                "description": "Manages data storage with fallback from external DB to in-memory",
-                "storage_status": storage_manager.get_storage_status(),
+                "description": "Enhanced SQLite storage with insights, events, and knowledge evolution",
                 "endpoints": [
-                    "POST - status: Get storage status",
-                    "POST - store_insight: Store insight data",
-                    "POST - get_insights: Retrieve insights",
-                    "POST - store_event: Store event data",
+                    "POST - store_insight: Store portfolio insights",
+                    "POST - get_insights: Retrieve insights with filtering",
+                    "POST - store_event: Store portfolio events",
                     "POST - get_events: Retrieve events",
-                    "POST - store_knowledge: Store knowledge evolution",
-                    "POST - get_knowledge: Retrieve knowledge evolution",
-                    "POST - clear_storage: Clear storage (maintenance)"
-                ]
+                    "POST - store_knowledge_evolution: Track knowledge evolution",
+                    "POST - get_knowledge_evolution: Get evolution trends",
+                    "POST - export_csv: Export insights to CSV",
+                    "POST - portfolio_metrics: Get portfolio metrics"
+                ],
+                "features": [
+                    "SQLite persistence",
+                    "Redis caching",
+                    "Knowledge evolution tracking",
+                    "CSV export",
+                    "Portfolio metrics",
+                    "Event monitoring"
+                ],
+                "status": "active"
             })
             
     except Exception as e:
-        return json.dumps({"error": str(e), "service": "StorageManager"}) 
+        return json.dumps({"error": str(e), "service": "StorageManager"})
+
+# Export handler for Vercel
+app = handler 
