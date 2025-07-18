@@ -1,21 +1,26 @@
 {
   "version": 2,
   "functions": {
-    "api/app_supabase.py": {
-      "maxDuration": 60
-    },
-    "api/scheduler/cron_handler.py": {
+    "api/health.py": {
       "maxDuration": 60
     }
   },
   "rewrites": [
     {
+      "source": "/api/health",
+      "destination": "/api/health.py"
+    },
+    {
+      "source": "/api/app",
+      "destination": "/api/health.py"
+    },
+    {
       "source": "/api/scheduler/(.*)",
-      "destination": "/api/scheduler/cron_handler.py"
+      "destination": "/api/health.py"
     },
     {
       "source": "/api/(.*)",
-      "destination": "/api/app_supabase.py"
+      "destination": "/api/health.py"
     }
   ],
   "headers": [
