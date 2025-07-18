@@ -1,66 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "functions": {
     "api/app.py": {
-      "runtime": "python3.9",
-      "memory": 1024,
-      "maxDuration": 60
-    },
-    "api/agents/risk_agent.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 30
-    },
-    "api/agents/news_agent.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 30
-    },
-    "api/agents/event_sentinel.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 30
-    },
-    "api/agents/knowledge_curator.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 30
-    },
-    "api/supervisor.py": {
-      "runtime": "python3.9",
-      "memory": 1024,
-      "maxDuration": 60
-    },
-    "api/database/storage_manager.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 30
-    },
-    "api/notifications/email_handler.py": {
-      "runtime": "python3.9",
-      "memory": 256,
-      "maxDuration": 30
-    },
-    "api/notifications/enhanced_email_service.py": {
-      "runtime": "python3.9",
-      "memory": 256,
-      "maxDuration": 30
-    },
-    "api/scheduler/cron_handler.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 60
-    },
-    "api/scheduler/vercel_cron_jobs.py": {
-      "runtime": "python3.9",
-      "memory": 512,
-      "maxDuration": 60
-    },
-    "api/config/env_validator.py": {
-      "runtime": "python3.9",
-      "memory": 256,
-      "maxDuration": 30
+      "runtime": "python@3.12"
     }
   },
   "rewrites": [
@@ -83,19 +25,9 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Authorization, X-Cron-Secret, X-API-Key"
+          "value": "X-Requested-With, Content-Type, Authorization"
         }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/scheduler/cron_handler",
-      "schedule": "0 */6 * * *"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "buildCommand": "cd frontend && npm run build"
+  ]
 } 

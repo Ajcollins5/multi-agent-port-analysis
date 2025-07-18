@@ -6,8 +6,7 @@ from collections import defaultdict
 
 # Environment variables with defensive checks
 XAI_API_KEY = os.environ.get("XAI_API_KEY")
-if not XAI_API_KEY:
-    raise ValueError("XAI_API_KEY environment variable is required for KnowledgeCurator. Set it in Vercel dashboard or local .env.")
+# Environment validation moved to runtime functions
 
 # In-memory storage for knowledge base (Vercel ephemeral environment)
 INSIGHTS_STORAGE = []

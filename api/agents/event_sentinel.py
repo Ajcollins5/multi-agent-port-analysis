@@ -9,22 +9,13 @@ from email.mime.multipart import MIMEMultipart
 
 # Environment variables with defensive checks
 XAI_API_KEY = os.environ.get("XAI_API_KEY")
-if not XAI_API_KEY:
-    raise ValueError("XAI_API_KEY environment variable is required for EventSentinel. Set it in Vercel dashboard or local .env.")
+# Environment validation moved to runtime functions
 
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
 SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
 TO_EMAIL = os.environ.get("TO_EMAIL")
-
-# Defensive checks for email configuration (required for notifications)
-if not SENDER_EMAIL:
-    raise ValueError("SENDER_EMAIL environment variable is required for email notifications. Set it in Vercel dashboard or local .env.")
-if not SENDER_PASSWORD:
-    raise ValueError("SENDER_PASSWORD environment variable is required for email notifications. Set it in Vercel dashboard or local .env.")
-if not TO_EMAIL:
-    raise ValueError("TO_EMAIL environment variable is required for email notifications. Set it in Vercel dashboard or local .env.")
 
 # In-memory storage for events and insights
 EVENTS_STORAGE = []

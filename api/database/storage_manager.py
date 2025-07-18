@@ -61,13 +61,15 @@ class StorageManager:
                     confidence REAL,
                     metadata TEXT,
                     refined BOOLEAN DEFAULT FALSE,
-                    original_insight TEXT,
-                    INDEX(ticker),
-                    INDEX(agent),
-                    INDEX(timestamp),
-                    INDEX(impact_level)
+                    original_insight TEXT
                 )
             """)
+            
+            # Create indexes for insights table
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_insights_ticker ON insights(ticker)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_insights_agent ON insights(agent)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_insights_timestamp ON insights(timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_insights_impact_level ON insights(impact_level)")
             
             # Create events table
             cursor.execute("""
@@ -82,13 +84,15 @@ class StorageManager:
                     volume_spike REAL,
                     portfolio_risk TEXT,
                     correlation_data TEXT,
-                    metadata TEXT,
-                    INDEX(event_type),
-                    INDEX(ticker),
-                    INDEX(severity),
-                    INDEX(timestamp)
+                    metadata TEXT
                 )
             """)
+            
+            # Create indexes for events table
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_ticker ON events(ticker)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_severity ON events(severity)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)")
             
             # Create knowledge_evolution table
             cursor.execute("""
@@ -102,13 +106,15 @@ class StorageManager:
                     agent TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     context TEXT,
-                    metadata TEXT,
-                    INDEX(ticker),
-                    INDEX(evolution_type),
-                    INDEX(agent),
-                    INDEX(timestamp)
+                    metadata TEXT
                 )
             """)
+            
+            # Create indexes for knowledge_evolution table
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_ticker ON knowledge_evolution(ticker)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_type ON knowledge_evolution(evolution_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_agent ON knowledge_evolution(agent)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_timestamp ON knowledge_evolution(timestamp)")
             
             # Create portfolio_analysis table
             cursor.execute("""
@@ -122,11 +128,13 @@ class StorageManager:
                     analysis_duration REAL,
                     agents_used TEXT,
                     synthesis_summary TEXT,
-                    metadata TEXT,
-                    INDEX(timestamp),
-                    INDEX(portfolio_risk)
+                    metadata TEXT
                 )
             """)
+            
+            # Create indexes for portfolio_analysis table
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_timestamp ON portfolio_analysis(timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_risk ON portfolio_analysis(portfolio_risk)")
             
             # Create system_metrics table
             cursor.execute("""
@@ -135,11 +143,13 @@ class StorageManager:
                     metric_type TEXT NOT NULL,
                     metric_value REAL NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    additional_data TEXT,
-                    INDEX(metric_type),
-                    INDEX(timestamp)
+                    additional_data TEXT
                 )
             """)
+            
+            # Create indexes for system_metrics table
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_type ON system_metrics(metric_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON system_metrics(timestamp)")
             
             conn.commit()
             conn.close()
