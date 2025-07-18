@@ -6,4 +6,9 @@ numpy==1.26.4
 python-dateutil==2.8.2
 
 # Additional dependencies for our system
-typing-extensions==4.8.0 
+typing-extensions==4.8.0
+
+# Optional dependencies (conditionally imported)
+# These are used if available but code has fallbacks
+redis==5.0.1
+# Note: sendgrid is optional and handled in enhanced_email_service.py 
