@@ -5,11 +5,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import logging
 
-# Environment variables with defensive checks
+# Environment variables (validation moved to runtime)
 XAI_API_KEY = os.environ.get("XAI_API_KEY")
-if not XAI_API_KEY:
-    raise ValueError("XAI_API_KEY environment variable is required for SupervisorAgent. Set it in Vercel dashboard or local .env.")
-
 VERCEL_URL = os.environ.get("VERCEL_URL", "")
 
 class GrokAI:
@@ -98,11 +95,27 @@ class GrokAI:
                     }
             else:
                 logging.error(f"Grok API error: {response.status_code} - {response.text}")
-                return self._fallback_synthesis(agent_results, ticker)
+                return {
+                    "overall_risk": "MEDIUM",
+                    "key_insights": ["Grok 4 API error"],
+                    "recommendations": ["Review analysis manually"],
+                    "confidence_level": 0.5,
+                    "requires_action": False,
+                    "synthesis_summary": "Grok 4 API error - manual review required",
+                    "error": True
+                }
                 
         except Exception as e:
             logging.error(f"Grok synthesis failed: {str(e)}")
-            return self._fallback_synthesis(agent_results, ticker)
+            return {
+                "overall_risk": "MEDIUM",
+                "key_insights": ["Grok 4 synthesis failed"],
+                "recommendations": ["Review analysis manually"],
+                "confidence_level": 0.5,
+                "requires_action": False,
+                "synthesis_summary": "Grok 4 synthesis failed - manual review required",
+                "error": True
+            }
     
     def _prepare_analysis_context(self, agent_results: Dict[str, Any], ticker: str) -> str:
         """Prepare context string for Grok 4 analysis"""
@@ -130,35 +143,7 @@ class GrokAI:
         
         return "\n".join(context_parts)
     
-    def _fallback_synthesis(self, agent_results: Dict[str, Any], ticker: str) -> Dict[str, Any]:
-        """Fallback synthesis when Grok 4 is unavailable"""
-        # Simple rule-based synthesis
-        risk_level = "LOW"
-        requires_action = False
-        
-        # Check risk indicators
-        if "risk" in agent_results:
-            risk_data = agent_results["risk"]
-            if risk_data.get("high_impact") or risk_data.get("volatility", 0) > 0.05:
-                risk_level = "HIGH"
-                requires_action = True
-        
-        # Check news sentiment
-        if "news" in agent_results:
-            news_data = agent_results["news"]
-            if news_data.get("impact_level") == "HIGH":
-                risk_level = "HIGH" if risk_level != "HIGH" else "HIGH"
-                requires_action = True
-        
-        return {
-            "overall_risk": risk_level,
-            "key_insights": [f"Fallback analysis for {ticker}"],
-            "recommendations": ["Review with Grok 4 when available"],
-            "confidence_level": 0.6,
-            "requires_action": requires_action,
-            "synthesis_summary": f"Rule-based synthesis for {ticker} - Grok 4 unavailable",
-            "fallback_used": True
-        }
+
 
     def refine_insight(self, ticker: str, original_insight: str, additional_context: str = "") -> Dict[str, Any]:
         """Use Grok 4 to refine and enhance insights"""
@@ -265,6 +250,36 @@ class SupervisorAgent:
             "scheduler": "/api/scheduler/cron"
         }
     
+    def _fallback_synthesis(self, agent_results: Dict[str, Any], ticker: str) -> Dict[str, Any]:
+        """Fallback synthesis when Grok 4 is unavailable"""
+        # Simple rule-based synthesis
+        risk_level = "LOW"
+        requires_action = False
+        
+        # Check risk indicators
+        if "risk" in agent_results:
+            risk_data = agent_results["risk"]
+            if risk_data.get("high_impact") or risk_data.get("volatility", 0) > 0.05:
+                risk_level = "HIGH"
+                requires_action = True
+        
+        # Check news sentiment
+        if "news" in agent_results:
+            news_data = agent_results["news"]
+            if news_data.get("impact_level") == "HIGH":
+                risk_level = "HIGH" if risk_level != "HIGH" else "HIGH"
+                requires_action = True
+        
+        return {
+            "overall_risk": risk_level,
+            "key_insights": [f"Fallback analysis for {ticker}"],
+            "recommendations": ["Review with Grok 4 when available"],
+            "confidence_level": 0.6,
+            "requires_action": requires_action,
+            "synthesis_summary": f"Rule-based synthesis for {ticker} - Grok 4 unavailable",
+            "fallback_used": True
+        }
+    
     def orchestrate_analysis(self, ticker: str, analysis_type: str = "comprehensive") -> Dict[str, Any]:
         """Orchestrate comprehensive analysis across all agents with Grok 4 synthesis"""
         try:
@@ -342,14 +357,7 @@ class SupervisorAgent:
             if self.grok_ai:
                 synthesis = self.grok_ai.synthesize_analysis(results["agent_results"], ticker)
             else:
-                synthesis = self.grok_ai._fallback_synthesis(results["agent_results"], ticker) if self.grok_ai else {
-                    "overall_risk": "MEDIUM",
-                    "key_insights": ["Grok 4 unavailable for synthesis"],
-                    "recommendations": ["Manual review required"],
-                    "confidence_level": 0.5,
-                    "requires_action": False,
-                    "synthesis_summary": "Fallback analysis - Grok 4 not configured"
-                }
+                synthesis = self._fallback_synthesis(results["agent_results"], ticker)
             results["synthesis"] = synthesis
             
             # Step 6: Notifications
