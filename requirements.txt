@@ -6,7 +6,7 @@ numpy==1.26.4
 python-dateutil==2.8.2
 
 # Additional dependencies for our system
-typing-extensions==4.8.0
+typing-extensions>=4.14.0
 
 # Supabase integration
 supabase==2.10.0
