@@ -259,57 +259,54 @@ def check_and_execute_due_jobs() -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def handler(request):
+def handler(event, context):
     """Vercel serverless function handler for cron jobs"""
     try:
-        if request.method == "POST":
-            body = request.get_json() or {}
-            action = body.get("action", "check_jobs")
-            
-            # Verify cron secret for security
-            provided_secret = body.get("secret", "") or request.headers.get("X-Cron-Secret", "")
-            if provided_secret != CRON_SECRET:
-                return json.dumps({"error": "Invalid cron secret", "status": 401})
-            
-            if action == "check_jobs":
-                return json.dumps(check_and_execute_due_jobs())
-            
-            elif action == "schedule_portfolio":
-                interval = body.get("interval_minutes", 60)
-                return json.dumps(schedule_portfolio_analysis(interval))
-            
-            elif action == "create_job":
-                job_type = body.get("job_type", "portfolio_analysis")
-                interval = body.get("interval_minutes", 60)
-                config = body.get("config", {})
-                return json.dumps(create_cron_job(job_type, interval, config))
-            
-            elif action == "execute_job":
-                job_id = body.get("job_id", "")
-                return json.dumps(execute_scheduled_job(job_id))
-            
-            elif action == "cancel_job":
-                job_id = body.get("job_id", "")
-                return json.dumps(cancel_job(job_id))
-            
-            elif action == "get_jobs":
-                return json.dumps(get_scheduled_jobs())
-            
-            elif action == "get_history":
-                limit = body.get("limit", 10)
-                return json.dumps(get_job_history(limit))
-            
-            else:
-                return json.dumps({
-                    "error": "Invalid action",
-                    "available_actions": [
-                        "check_jobs", "schedule_portfolio", "create_job",
-                        "execute_job", "cancel_job", "get_jobs", "get_history"
-                    ]
-                })
+        # Handle OPTIONS requests for CORS
+        if event.get("httpMethod") == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Cron-Secret"
+                },
+                "body": ""
+            }
         
+        # Extract request data
+        http_method = event.get("httpMethod", "GET")
+        query_params = event.get("queryStringParameters") or {}
+        body = event.get("body", "{}")
+        headers = event.get("headers", {})
+        
+        # Parse request data
+        if http_method == "POST":
+            try:
+                request_data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                return {
+                    "statusCode": 400,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"error": "Invalid JSON in request body"})
+                }
         else:
-            return json.dumps({
+            request_data = dict(query_params)
+        
+        action = request_data.get("action", "check_jobs")
+        
+        # Verify cron secret for security
+        provided_secret = request_data.get("secret", "") or headers.get("X-Cron-Secret", "") or headers.get("x-cron-secret", "")
+        if provided_secret != CRON_SECRET:
+            return {
+                "statusCode": 401,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Invalid cron secret", "status": 401})
+            }
+        
+        # For GET requests without authentication, provide service information
+        if http_method == "GET" and not provided_secret:
+            result = {
                 "service": "CronHandler",
                 "description": "Handles background scheduling for portfolio analysis",
                 "endpoints": [
@@ -322,8 +319,57 @@ def handler(request):
                     "POST - get_history: Get job execution history"
                 ],
                 "status": "active",
-                "note": "Requires X-Cron-Secret header or secret in request body"
-            })
-            
+                "note": "Requires X-Cron-Secret header or secret in request body for authenticated actions"
+            }
+        # Route to appropriate handler
+        elif action == "check_jobs":
+            result = check_and_execute_due_jobs()
+        elif action == "schedule_portfolio":
+            interval = request_data.get("interval_minutes", 60)
+            result = schedule_portfolio_analysis(interval)
+        elif action == "create_job":
+            job_type = request_data.get("job_type", "portfolio_analysis")
+            interval = request_data.get("interval_minutes", 60)
+            config = request_data.get("config", {})
+            result = create_cron_job(job_type, interval, config)
+        elif action == "execute_job":
+            job_id = request_data.get("job_id", "")
+            result = execute_scheduled_job(job_id)
+        elif action == "cancel_job":
+            job_id = request_data.get("job_id", "")
+            result = cancel_job(job_id)
+        elif action == "get_jobs":
+            result = get_scheduled_jobs()
+        elif action == "get_history":
+            limit = request_data.get("limit", 10)
+            result = get_job_history(limit)
+        else:
+            result = {
+                "error": "Invalid action",
+                "available_actions": [
+                    "check_jobs", "schedule_portfolio", "create_job",
+                    "execute_job", "cancel_job", "get_jobs", "get_history"
+                ]
+            }
+        
+        # Return response
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Cron-Secret"
+            },
+            "body": json.dumps(result)
+        }
+        
     except Exception as e:
-        return json.dumps({"error": str(e), "service": "CronHandler"}) 
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            "body": json.dumps({"error": str(e), "service": "CronHandler"})
+        } 

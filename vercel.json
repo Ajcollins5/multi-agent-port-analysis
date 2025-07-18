@@ -3,9 +3,16 @@
   "functions": {
     "api/app_supabase.py": {
       "maxDuration": 60
+    },
+    "api/scheduler/cron_handler.py": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
+    {
+      "source": "/api/scheduler/(.*)",
+      "destination": "/api/scheduler/cron_handler.py"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api/app_supabase.py"
