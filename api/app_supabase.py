@@ -1,15 +1,14 @@
 import json
 import logging
+import os
+import sys
 from typing import Dict, Any, Optional, List
 from urllib.parse import parse_qs, urlparse
 from datetime import datetime
 import asyncio
 
-# Import the new Supabase-enabled agents
-from agents.supabase_risk_agent import SupabaseRiskAgent
-from database.supabase_manager import supabase_manager
-# Migration utilities removed - migration is complete
-from supervisor import SupervisorAgent
+# Add the api directory to the path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 # Configure logging for serverless environment
 logging.basicConfig(
@@ -17,6 +16,34 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Environment variable validation
+REQUIRED_ENV_VARS = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+MISSING_ENV_VARS = [var for var in REQUIRED_ENV_VARS if not os.environ.get(var)]
+
+# Import with error handling
+try:
+    # Try to import the Supabase-enabled agents
+    from agents.supabase_risk_agent import SupabaseRiskAgent
+    SUPABASE_RISK_AGENT_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"SupabaseRiskAgent import failed: {e}")
+    SUPABASE_RISK_AGENT_AVAILABLE = False
+
+try:
+    from database.supabase_manager import supabase_manager
+    SUPABASE_MANAGER_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"supabase_manager import failed: {e}")
+    SUPABASE_MANAGER_AVAILABLE = False
+    supabase_manager = None
+
+try:
+    from supervisor import SupervisorAgent
+    SUPERVISOR_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"SupervisorAgent import failed: {e}")
+    SUPERVISOR_AVAILABLE = False
 
 class SupabaseAPIHandler:
     """
@@ -27,7 +54,7 @@ class SupabaseAPIHandler:
     """
     
     def __init__(self):
-        self.storage = supabase_manager
+        self.storage = supabase_manager if SUPABASE_MANAGER_AVAILABLE else None
         self.risk_agent = None
         self.supervisor = None
         
@@ -37,41 +64,69 @@ class SupabaseAPIHandler:
     def _initialize_agents(self):
         """Initialize agents with proper error handling"""
         try:
-            if self.storage:
+            if MISSING_ENV_VARS:
+                logger.error(f"Missing required environment variables: {MISSING_ENV_VARS}")
+                return
+                
+            if self.storage and SUPABASE_RISK_AGENT_AVAILABLE:
                 self.risk_agent = SupabaseRiskAgent()
-                self.supervisor = SupervisorAgent()
-                logger.info("Successfully initialized Supabase agents")
+                logger.info("Successfully initialized SupabaseRiskAgent")
             else:
-                logger.warning("Supabase manager not available, using fallback mode")
+                logger.warning("SupabaseRiskAgent not available")
+                
+            if SUPERVISOR_AVAILABLE:
+                self.supervisor = SupervisorAgent()
+                logger.info("Successfully initialized SupervisorAgent")
+            else:
+                logger.warning("SupervisorAgent not available")
+                
         except Exception as e:
             logger.error(f"Failed to initialize agents: {e}")
     
     async def health_check(self) -> Dict[str, Any]:
-        """Health check endpoint"""
+        """Health check endpoint with comprehensive status"""
         try:
-            # Check database connectivity
-            db_status = "connected" if self.storage else "disconnected"
-            
-            # Check agent availability
-            agents_status = {
-                "risk_agent": self.risk_agent is not None,
-                "supervisor": self.supervisor is not None
+            status = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "services": {
+                    "supabase_manager": SUPABASE_MANAGER_AVAILABLE,
+                    "supabase_risk_agent": SUPABASE_RISK_AGENT_AVAILABLE,
+                    "supervisor": SUPERVISOR_AVAILABLE
+                },
+                "environment": {
+                    "required_vars_present": len(MISSING_ENV_VARS) == 0,
+                    "missing_vars": MISSING_ENV_VARS
+                }
             }
+            
+            # Test database connection if available
+            if self.storage:
+                try:
+                    # Simple connection test - just check if client is available
+                    if hasattr(self.storage, 'client') and self.storage.client:
+                        status["database"] = "connected"
+                    else:
+                        status["database"] = "client_unavailable"
+                        status["status"] = "degraded"
+                except Exception as db_e:
+                    status["database"] = f"error: {str(db_e)}"
+                    status["status"] = "degraded"
+            else:
+                status["database"] = "not_available"
+                status["status"] = "degraded"
             
             return {
                 "success": True,
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
-                "database_status": db_status,
-                "agents_status": agents_status,
-                "environment": "production" if self.storage else "development"
+                "data": status
             }
+            
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return {
                 "success": False,
-                "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
+                "status": "unhealthy"
             }
     
     async def analyze_portfolio(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -335,6 +390,18 @@ def handler(event, context):
     This handler processes HTTP requests and returns JSON responses.
     """
     try:
+        # Handle OPTIONS requests for CORS
+        if event.get("httpMethod") == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+                },
+                "body": ""
+            }
+        
         # Extract request data
         http_method = event.get("httpMethod", "GET")
         query_params = event.get("queryStringParameters") or {}
@@ -357,8 +424,19 @@ def handler(event, context):
         if "action" not in request_data:
             request_data["action"] = "health"
         
-        # Process the request
-        result = asyncio.run(api(request_data))
+        # Process the request - use asyncio.run with proper error handling
+        try:
+            # Create new event loop for serverless environment
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(api(request_data))
+            finally:
+                loop.close()
+        except Exception as async_e:
+            logger.error(f"Async processing error: {async_e}")
+            # Fallback to synchronous processing for critical errors
+            result = {"success": False, "error": f"Async processing failed: {str(async_e)}"}
         
         # Return response
         return {
@@ -376,7 +454,10 @@ def handler(event, context):
         logger.error(f"Handler error: {e}")
         return {
             "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
             "body": json.dumps({"success": False, "error": str(e)})
         }
 
