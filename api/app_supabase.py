@@ -45,6 +45,34 @@ except ImportError as e:
     logger.warning(f"SupervisorAgent import failed: {e}")
     SUPERVISOR_AVAILABLE = False
 
+# Import monitoring service
+try:
+    import sys
+    import os
+    backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
+    sys.path.insert(0, backend_path)
+    from monitoring_service import monitoring_service, MonitoringSettings, MonitoringFrequency, PortfolioPosition
+    MONITORING_SERVICE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"monitoring_service import failed: {e}")
+    MONITORING_SERVICE_AVAILABLE = False
+
+# Import news intelligence service
+try:
+    from news_intelligence_service import news_intelligence, NewsSnapshot, StockPersonality, NewsCategory, NewsImpact
+    NEWS_INTELLIGENCE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"news_intelligence_service import failed: {e}")
+    NEWS_INTELLIGENCE_AVAILABLE = False
+
+# Import automated news pipeline
+try:
+    from automated_news_pipeline import automated_pipeline, AutomatedNewsPipeline
+    AUTOMATED_PIPELINE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"automated_news_pipeline import failed: {e}")
+    AUTOMATED_PIPELINE_AVAILABLE = False
+
 class SupabaseAPIHandler:
     """
     Enhanced API handler with Supabase integration
@@ -340,7 +368,343 @@ class SupabaseAPIHandler:
         except Exception as e:
             logger.error(f"System status error: {e}")
             return {"success": False, "error": str(e)}
-    
+
+    async def start_monitoring(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Start continuous portfolio monitoring"""
+        try:
+            if not MONITORING_SERVICE_AVAILABLE:
+                return {"success": False, "error": "Monitoring service not available"}
+
+            user_id = request_data.get("user_id", "default_user")
+            portfolio = request_data.get("portfolio", [])
+            frequency = request_data.get("frequency", "daily")
+            enabled = request_data.get("enabled", True)
+
+            if not portfolio:
+                return {"success": False, "error": "Portfolio is required"}
+
+            # Convert portfolio to PortfolioPosition objects
+            positions = []
+            for pos in portfolio:
+                positions.append(PortfolioPosition(
+                    ticker=pos.get("ticker", ""),
+                    shares=pos.get("shares", 0),
+                    cost_basis=pos.get("cost_basis", 0.0)
+                ))
+
+            # Calculate costs
+            costs = monitoring_service.calculate_monitoring_costs(
+                MonitoringFrequency(frequency),
+                len(positions)
+            )
+
+            # Create monitoring settings
+            settings = MonitoringSettings(
+                frequency=MonitoringFrequency(frequency),
+                enabled=enabled,
+                cost_per_analysis=costs["cost_per_analysis"],
+                estimated_monthly_cost=costs["estimated_monthly_cost"]
+            )
+
+            # Start monitoring
+            status = await monitoring_service.start_monitoring(user_id, positions, settings)
+
+            return {
+                "success": True,
+                "monitoring_status": {
+                    "is_monitoring": status.is_monitoring,
+                    "active_positions": status.active_positions,
+                    "next_analysis": status.next_analysis.isoformat(),
+                    "total_analyses_today": status.total_analyses_today,
+                    "current_cost_today": status.current_cost_today
+                },
+                "settings": {
+                    "frequency": settings.frequency.value,
+                    "enabled": settings.enabled,
+                    "cost_per_analysis": settings.cost_per_analysis,
+                    "estimated_monthly_cost": settings.estimated_monthly_cost
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Start monitoring error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def stop_monitoring(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Stop continuous portfolio monitoring"""
+        try:
+            if not MONITORING_SERVICE_AVAILABLE:
+                return {"success": False, "error": "Monitoring service not available"}
+
+            user_id = request_data.get("user_id", "default_user")
+            success = await monitoring_service.stop_monitoring(user_id)
+
+            return {
+                "success": success,
+                "message": "Monitoring stopped" if success else "No active monitoring found"
+            }
+
+        except Exception as e:
+            logger.error(f"Stop monitoring error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_monitoring_status(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get current monitoring status"""
+        try:
+            if not MONITORING_SERVICE_AVAILABLE:
+                return {"success": False, "error": "Monitoring service not available"}
+
+            user_id = request_data.get("user_id", "default_user")
+            status = await monitoring_service.get_monitoring_status(user_id)
+
+            if not status:
+                return {
+                    "success": True,
+                    "monitoring_status": {
+                        "is_monitoring": False,
+                        "active_positions": 0,
+                        "next_analysis": None,
+                        "total_analyses_today": 0,
+                        "current_cost_today": 0.0
+                    }
+                }
+
+            return {
+                "success": True,
+                "monitoring_status": {
+                    "is_monitoring": status.is_monitoring,
+                    "active_positions": status.active_positions,
+                    "next_analysis": status.next_analysis.isoformat(),
+                    "total_analyses_today": status.total_analyses_today,
+                    "current_cost_today": status.current_cost_today
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Get monitoring status error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def ingest_news_article(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Ingest and compress a news article"""
+        try:
+            if not NEWS_INTELLIGENCE_AVAILABLE:
+                return {"success": False, "error": "News intelligence service not available"}
+
+            ticker = request_data.get("ticker", "").upper()
+            article_text = request_data.get("article_text", "")
+            source_url = request_data.get("source_url", "")
+            price_before = request_data.get("price_before", 0.0)
+            price_1h_after = request_data.get("price_1h_after", 0.0)
+            price_24h_after = request_data.get("price_24h_after", 0.0)
+
+            if not all([ticker, article_text, price_before, price_1h_after, price_24h_after]):
+                return {"success": False, "error": "Missing required fields"}
+
+            # Ingest article and create snapshot
+            snapshot = await news_intelligence.ingest_article(
+                ticker=ticker,
+                article_text=article_text,
+                source_url=source_url,
+                price_before=price_before,
+                price_1h_after=price_1h_after,
+                price_24h_after=price_24h_after
+            )
+
+            return {
+                "success": True,
+                "snapshot": {
+                    "ticker": snapshot.ticker,
+                    "timestamp": snapshot.timestamp.isoformat(),
+                    "category": snapshot.category.value,
+                    "impact": snapshot.impact.value,
+                    "price_change_1h": snapshot.price_change_1h,
+                    "price_change_24h": snapshot.price_change_24h,
+                    "summary_line_1": snapshot.summary_line_1,
+                    "summary_line_2": snapshot.summary_line_2,
+                    "confidence_score": snapshot.confidence_score
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Ingest news article error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_stock_personality(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get stock personality profile"""
+        try:
+            if not NEWS_INTELLIGENCE_AVAILABLE:
+                return {"success": False, "error": "News intelligence service not available"}
+
+            ticker = request_data.get("ticker", "").upper()
+            if not ticker:
+                return {"success": False, "error": "Ticker is required"}
+
+            personality = news_intelligence.get_stock_personality(ticker)
+
+            if not personality:
+                return {"success": False, "error": f"No personality data found for {ticker}"}
+
+            return {
+                "success": True,
+                "personality": {
+                    "ticker": personality.ticker,
+                    "total_events": personality.total_events,
+                    "avg_volatility": personality.avg_volatility,
+                    "reaction_patterns": personality.reaction_patterns,
+                    "sentiment_sensitivity": personality.sentiment_sensitivity,
+                    "news_momentum": personality.news_momentum,
+                    "last_updated": personality.last_updated.isoformat()
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Get stock personality error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_news_history(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get news history for a ticker"""
+        try:
+            if not NEWS_INTELLIGENCE_AVAILABLE:
+                return {"success": False, "error": "News intelligence service not available"}
+
+            ticker = request_data.get("ticker", "").upper()
+            days = request_data.get("days", 365)
+
+            if not ticker:
+                return {"success": False, "error": "Ticker is required"}
+
+            history = news_intelligence.get_news_history(ticker, days)
+
+            return {
+                "success": True,
+                "history": [
+                    {
+                        "ticker": snapshot.ticker,
+                        "timestamp": snapshot.timestamp.isoformat(),
+                        "category": snapshot.category.value,
+                        "impact": snapshot.impact.value,
+                        "price_change_1h": snapshot.price_change_1h,
+                        "price_change_24h": snapshot.price_change_24h,
+                        "summary_line_1": snapshot.summary_line_1,
+                        "summary_line_2": snapshot.summary_line_2,
+                        "source_url": snapshot.source_url,
+                        "confidence_score": snapshot.confidence_score
+                    }
+                    for snapshot in history
+                ]
+            }
+
+        except Exception as e:
+            logger.error(f"Get news history error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def analyze_news_trends(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze news trends for a ticker"""
+        try:
+            if not NEWS_INTELLIGENCE_AVAILABLE:
+                return {"success": False, "error": "News intelligence service not available"}
+
+            ticker = request_data.get("ticker", "").upper()
+            if not ticker:
+                return {"success": False, "error": "Ticker is required"}
+
+            trends = news_intelligence.analyze_news_trends(ticker)
+
+            return {
+                "success": True,
+                "trends": trends
+            }
+
+        except Exception as e:
+            logger.error(f"Analyze news trends error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def trigger_automated_news_analysis(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Trigger automated news analysis for a ticker"""
+        try:
+            if not AUTOMATED_PIPELINE_AVAILABLE:
+                return {"success": False, "error": "Automated pipeline not available"}
+
+            ticker = request_data.get("ticker", "").upper()
+            if not ticker:
+                return {"success": False, "error": "Ticker is required"}
+
+            # Process news for the ticker
+            snapshots = await automated_pipeline.process_ticker_news(ticker)
+
+            return {
+                "success": True,
+                "ticker": ticker,
+                "snapshots_created": len(snapshots),
+                "snapshots": [
+                    {
+                        "ticker": snapshot.ticker,
+                        "timestamp": snapshot.timestamp.isoformat(),
+                        "category": snapshot.category.value,
+                        "impact": snapshot.impact.value,
+                        "price_change_1h": snapshot.price_change_1h,
+                        "price_change_24h": snapshot.price_change_24h,
+                        "summary_line_1": snapshot.summary_line_1,
+                        "summary_line_2": snapshot.summary_line_2,
+                        "confidence_score": snapshot.confidence_score
+                    }
+                    for snapshot in snapshots
+                ]
+            }
+
+        except Exception as e:
+            logger.error(f"Trigger automated news analysis error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def start_continuous_monitoring(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Start continuous news monitoring for multiple tickers"""
+        try:
+            if not AUTOMATED_PIPELINE_AVAILABLE:
+                return {"success": False, "error": "Automated pipeline not available"}
+
+            tickers = request_data.get("tickers", [])
+            interval_minutes = request_data.get("interval_minutes", 30)
+
+            if not tickers:
+                return {"success": False, "error": "At least one ticker is required"}
+
+            # Start continuous monitoring in background
+            import asyncio
+            asyncio.create_task(
+                automated_pipeline.run_continuous_monitoring(tickers, interval_minutes)
+            )
+
+            return {
+                "success": True,
+                "message": f"Started continuous monitoring for {len(tickers)} tickers",
+                "tickers": tickers,
+                "interval_minutes": interval_minutes
+            }
+
+        except Exception as e:
+            logger.error(f"Start continuous monitoring error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_pipeline_status(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get status of the automated news pipeline"""
+        try:
+            if not AUTOMATED_PIPELINE_AVAILABLE:
+                return {"success": False, "error": "Automated pipeline not available"}
+
+            return {
+                "success": True,
+                "pipeline_status": {
+                    "available": True,
+                    "processed_articles": len(automated_pipeline.processed_articles),
+                    "fmp_api_configured": bool(automated_pipeline.fmp_api_key),
+                    "grok_api_configured": bool(automated_pipeline.grok_api_key)
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Get pipeline status error: {e}")
+            return {"success": False, "error": str(e)}
+
     # Migration methods removed - migration is complete
 
 
@@ -374,6 +738,26 @@ async def api(request_data: Dict[str, Any]) -> Dict[str, Any]:
             return await api_handler.get_portfolio_analysis(request_data)
         elif action == "get_system_status":
             return await api_handler.get_system_status(request_data)
+        elif action == "start_monitoring":
+            return await api_handler.start_monitoring(request_data)
+        elif action == "stop_monitoring":
+            return await api_handler.stop_monitoring(request_data)
+        elif action == "get_monitoring_status":
+            return await api_handler.get_monitoring_status(request_data)
+        elif action == "ingest_news_article":
+            return await api_handler.ingest_news_article(request_data)
+        elif action == "get_stock_personality":
+            return await api_handler.get_stock_personality(request_data)
+        elif action == "get_news_history":
+            return await api_handler.get_news_history(request_data)
+        elif action == "analyze_news_trends":
+            return await api_handler.analyze_news_trends(request_data)
+        elif action == "trigger_automated_news_analysis":
+            return await api_handler.trigger_automated_news_analysis(request_data)
+        elif action == "start_continuous_monitoring":
+            return await api_handler.start_continuous_monitoring(request_data)
+        elif action == "get_pipeline_status":
+            return await api_handler.get_pipeline_status(request_data)
         # Migration actions removed - migration is complete
         else:
             return {"success": False, "error": f"Unknown action: {action}"}

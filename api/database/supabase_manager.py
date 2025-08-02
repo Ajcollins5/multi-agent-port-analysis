@@ -49,16 +49,22 @@ class SupabaseManager:
                     if not POSTGRES_URL:
                         raise ValueError("POSTGRES_URL environment variable is required for connection pooling")
                     
+                    # OPTIMIZATION: Enhanced connection pool configuration
                     self.pool = await asyncpg.create_pool(
                         POSTGRES_URL,
-                        min_size=2,  # Increased minimum for better performance
-                        max_size=10,  # Increased maximum for higher throughput
-                        command_timeout=30,
-                        max_queries=50000,  # Prevent connection exhaustion
-                        max_inactive_connection_lifetime=300,  # 5 minutes
+                        min_size=1,  # Reduced for serverless efficiency
+                        max_size=5,   # Optimized for serverless constraints
+                        command_timeout=15,  # Faster timeout for responsiveness
+                        max_queries=10000,   # Reasonable limit for serverless
+                        max_inactive_connection_lifetime=180,  # 3 minutes for faster cleanup
                         server_settings={
                             'jit': 'off',  # Disable JIT for faster startup
-                            'application_name': 'supabase_portfolio_analysis'
+                            'application_name': 'news_intelligence_pipeline',
+                            'statement_timeout': '30s',  # Prevent long-running queries
+                            'idle_in_transaction_session_timeout': '60s',  # Clean up idle transactions
+                            'tcp_keepalives_idle': '300',  # Keep connections alive
+                            'tcp_keepalives_interval': '30',
+                            'tcp_keepalives_count': '3'
                         }
                     )
         return self.pool

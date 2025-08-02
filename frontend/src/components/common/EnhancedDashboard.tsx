@@ -158,7 +158,7 @@ const EnhancedDashboard: React.FC = () => {
             value={formatCurrency(dashboardMetrics.portfolio_value)}
             change={portfolio?.daily_change}
             changeType={portfolio?.daily_change && portfolio.daily_change > 0 ? 'positive' : 'negative'}
-            icon={<DollarSign className="w-5 h-5" />}
+            icon={DollarSign}
             trend={[65, 59, 80, 81, 56, 55, 40]}
           />
           
@@ -166,7 +166,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Risk Score"
             value={dashboardMetrics.risk_score}
             subtitle={`${dashboardMetrics.recent_analysis} stocks analyzed`}
-            icon={<BarChart3 className="w-5 h-5" />}
+            icon={BarChart3}
             trend={[28, 48, 40, 19, 86, 27, 90]}
           />
           
@@ -174,7 +174,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Active Insights"
             value={dashboardMetrics.total_insights}
             subtitle="AI-powered analysis"
-            icon={<Brain className="w-5 h-5" />}
+            icon={Brain}
             trend={[0, 2, 5, 8, 12, 18, 25]}
           />
           
@@ -182,7 +182,7 @@ const EnhancedDashboard: React.FC = () => {
             title="System Health"
             value={`${dashboardMetrics.system_health}%`}
             subtitle={`${dashboardMetrics.active_jobs} active jobs`}
-            icon={<Activity className="w-5 h-5" />}
+            icon={Activity}
             trend={[100, 95, 98, 92, 85, 90, 100]}
           />
         </div>
@@ -193,7 +193,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Total Events"
             value={dashboardMetrics.total_events}
             subtitle="Real-time monitoring"
-            icon={<Eye className="w-5 h-5" />}
+            icon={Eye}
             trend={[5, 8, 12, 15, 18, 22, 25]}
           />
           
@@ -201,7 +201,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Email Success Rate"
             value={`${dashboardMetrics.email_success_rate}%`}
             subtitle="Notification delivery"
-            icon={<Mail className="w-5 h-5" />}
+            icon={Mail}
             trend={[85, 88, 92, 95, 98, 99, 100]}
           />
           
@@ -209,7 +209,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Active Jobs"
             value={dashboardMetrics.active_jobs}
             subtitle="Scheduled tasks"
-            icon={<Calendar className="w-5 h-5" />}
+            icon={Calendar}
             trend={[3, 4, 5, 6, 5, 4, 3]}
           />
           
@@ -217,7 +217,7 @@ const EnhancedDashboard: React.FC = () => {
             title="Uptime"
             value="99.9%"
             subtitle="Service availability"
-            icon={<Server className="w-5 h-5" />}
+            icon={Server}
             trend={[99, 100, 99, 98, 100, 99, 100]}
           />
         </div>

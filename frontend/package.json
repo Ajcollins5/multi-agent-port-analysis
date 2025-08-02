@@ -12,17 +12,20 @@
     "bundle-analyzer": "npm run build:analyze && npx serve .next/analyze"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@tanstack/react-query": "^4.40.1",
+    "@tanstack/react-query-devtools": "^5.84.1",
+    "axios": "^1.6.0",
+    "critters": "^0.0.23",
+    "date-fns": "^2.30.0",
+    "lucide-react": "^0.294.0",
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "react-icons": "^4.11.0",
-    "recharts": "^2.8.0",
-    "axios": "^1.6.0",
-    "date-fns": "^2.30.0",
-    "@tanstack/react-query": "^4.36.1",
     "react-hot-toast": "^2.4.0",
-    "lucide-react": "^0.294.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "react-icons": "^4.11.0",
+    "react-query": "^3.39.3",
+    "recharts": "^2.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -36,4 +39,4 @@
     "typescript": "^5.0.0",
     "webpack-bundle-analyzer": "^4.9.0"
   }
-} 
+}
