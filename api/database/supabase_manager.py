@@ -51,9 +51,11 @@ class SupabaseManager:
                     
                     self.pool = await asyncpg.create_pool(
                         POSTGRES_URL,
-                        min_size=1,  # Minimum for serverless
-                        max_size=5,  # Conservative limit for Vercel
+                        min_size=2,  # Increased minimum for better performance
+                        max_size=10,  # Increased maximum for higher throughput
                         command_timeout=30,
+                        max_queries=50000,  # Prevent connection exhaustion
+                        max_inactive_connection_lifetime=300,  # 5 minutes
                         server_settings={
                             'jit': 'off',  # Disable JIT for faster startup
                             'application_name': 'supabase_portfolio_analysis'
@@ -67,6 +69,38 @@ class SupabaseManager:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             yield conn
+
+    async def health_check(self) -> bool:
+        """Check pool health and recreate if needed"""
+        try:
+            pool = await self._get_pool()
+            async with pool.acquire() as conn:
+                await conn.fetchval('SELECT 1')
+            return True
+        except Exception as e:
+            logging.error(f"Health check failed: {e}")
+            # Reset pool on failure
+            if self.pool:
+                await self.pool.close()
+                self.pool = None
+            return False
+
+    async def get_pool_stats(self) -> Dict[str, Any]:
+        """Get connection pool statistics"""
+        try:
+            if not self.pool:
+                return {"pool_initialized": False}
+
+            return {
+                "pool_initialized": True,
+                "size": self.pool.get_size(),
+                "min_size": self.pool.get_min_size(),
+                "max_size": self.pool.get_max_size(),
+                "idle_size": self.pool.get_idle_size()
+            }
+        except Exception as e:
+            logging.error(f"Failed to get pool stats: {e}")
+            return {"error": str(e)}
     
     async def store_insight(self, ticker: str, insight: str, agent: str = None, 
                           metadata: Dict[str, Any] = None, 
