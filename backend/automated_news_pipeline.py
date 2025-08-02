@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import os
 from news_intelligence_service import news_intelligence, NewsSnapshot, NewsCategory, NewsImpact
+from rate_limiter import news_rate_limiter, rate_limited
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class FinancialModelingPrepAPI:
         if self.session:
             await self.session.close()
     
+    @rate_limited("financial_modeling_prep")
     async def get_latest_news(self, ticker: str, limit: int = 50) -> List[NewsArticle]:
         """Fetch latest news articles for a ticker"""
         try:
@@ -82,6 +84,7 @@ class FinancialModelingPrepAPI:
             logger.error(f"Error fetching news for {ticker}: {e}")
             return []
     
+    @rate_limited("financial_modeling_prep")
     async def get_historical_prices(self, ticker: str, from_date: datetime, to_date: datetime) -> List[PriceData]:
         """Fetch historical price data for impact analysis"""
         try:
@@ -130,6 +133,7 @@ class GrokAIAnalyzer:
         if self.session:
             await self.session.close()
     
+    @rate_limited("grok_ai")
     async def analyze_news_article(self, article: NewsArticle, price_impact: Dict) -> Dict:
         """Use Grok 4 to analyze and enrich news article"""
         try:

@@ -44,16 +44,29 @@ CREATE TABLE IF NOT EXISTS reaction_patterns (
     UNIQUE(ticker, category)
 );
 
--- Indexes for performance
+-- OPTIMIZATION: Enhanced indexes for performance
 CREATE INDEX IF NOT EXISTS idx_news_snapshots_ticker ON news_snapshots(ticker);
-CREATE INDEX IF NOT EXISTS idx_news_snapshots_timestamp ON news_snapshots(timestamp);
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_timestamp ON news_snapshots(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_news_snapshots_category ON news_snapshots(category);
 CREATE INDEX IF NOT EXISTS idx_news_snapshots_impact ON news_snapshots(impact);
-CREATE INDEX IF NOT EXISTS idx_news_snapshots_ticker_timestamp ON news_snapshots(ticker, timestamp);
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_ticker_timestamp ON news_snapshots(ticker, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_confidence ON news_snapshots(confidence_score DESC);
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_price_change ON news_snapshots(price_change_24h);
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_composite ON news_snapshots(ticker, category, timestamp DESC);
+
+-- OPTIMIZATION: Partial indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_recent
+ON news_snapshots(ticker, timestamp DESC)
+WHERE timestamp > NOW() - INTERVAL '90 days';
+
+CREATE INDEX IF NOT EXISTS idx_news_snapshots_high_impact
+ON news_snapshots(ticker, timestamp DESC)
+WHERE ABS(price_change_24h) > 2.0;
 
 CREATE INDEX IF NOT EXISTS idx_stock_personalities_ticker ON stock_personalities(ticker);
 CREATE INDEX IF NOT EXISTS idx_reaction_patterns_ticker ON reaction_patterns(ticker);
 CREATE INDEX IF NOT EXISTS idx_reaction_patterns_category ON reaction_patterns(category);
+CREATE INDEX IF NOT EXISTS idx_reaction_patterns_composite ON reaction_patterns(ticker, category);
 
 -- Views for common queries
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Newspaper,
   TrendingUp,
@@ -57,6 +57,15 @@ const NewsIntelligenceDashboard: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [impactFilter, setImpactFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState<NewsSnapshot | null>(null);
+
+  // OPTIMIZATION: Memoized callbacks to prevent child re-renders
+  const handleEventSelect = useCallback((event: NewsSnapshot) => {
+    setSelectedEvent(event);
+  }, []);
+
+  const handleEventClose = useCallback(() => {
+    setSelectedEvent(null);
+  }, []);
 
   // Extended mock data for demonstration
   const mockNewsSnapshots: NewsSnapshot[] = [
@@ -591,7 +600,7 @@ const NewsIntelligenceDashboard: React.FC = () => {
                   <div
                     key={index}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setSelectedEvent(snapshot)}
+                    onClick={() => handleEventSelect(snapshot)}
                   >
                     {/* Event Header */}
                     <div className="flex items-start justify-between mb-3">
@@ -683,7 +692,7 @@ const NewsIntelligenceDashboard: React.FC = () => {
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">Event Details</h3>
                 <button
-                  onClick={() => setSelectedEvent(null)}
+                  onClick={handleEventClose}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
